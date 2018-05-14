@@ -1,7 +1,11 @@
 import Vue from 'vue'
-import App from './App.vue'
+import EdamSelect from './EdamSelect.vue'
 
 new Vue({
   el: '#app',
-  render: h => h(App)
-})
+  render: h => h(EdamSelect, {
+    props: {
+      'type': 'operation'
+    }
+  })
+});

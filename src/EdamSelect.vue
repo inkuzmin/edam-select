@@ -38,6 +38,8 @@
 
   import EDAM from './edam';
 
+  import _ from 'lodash';
+
   export default {
     name: 'edam-select',
     components: {
@@ -127,25 +129,26 @@
       search: debounce(function (e) {
         let results = this.fuseSearchLabel.search(e.target.value);
 
+        let found = [];
         results.forEach((result) => {
           this.highlightedResults.push(result.item.id);
           this.searchResults.push(result.item.id);
 
           let ids = this.addParents(result.item.id, []);
-          console.log(ids);
 
+          found = _.uniq(_.flatten([found, ids]));
         });
 
+        console.log(found);
 
-
-        // console.log(this.type)
-
-        // console.log(results);
       }, 500),
 
       addParents: function (id, acc) {
           let index = EDAM.index(this.type)[id];
-          console.log(id, index);
+
+          if (id === 'ok') {
+            return acc;
+          }
 
           let data = EDAM.searchData[this.type][index];
 
@@ -153,7 +156,6 @@
 
           data['parent_ids'] && data['parent_ids'].forEach((parentId) => {
             acc = this.addParents(parentId, acc);
-            // console.log(123);
           });
 
           return acc;

@@ -31,32 +31,7 @@
 
 <script>
 
-  import edamSearchData from './edam/edam-search-data';
-  import edamSearchFormat from './edam/edam-search-format';
-  import edamSearchOperation from './edam/edam-search-operation';
-  import edamSearchTopic from './edam/edam-search-topic';
-
-  const edam = {
-    data: edamSearchData,
-    format: edamSearchFormat,
-    operation: edamSearchOperation,
-    topic: edamSearchTopic
-  };
-
-  const edamIndexes = {
-    data: index(edam.data),
-    format: index(edam.format),
-    operation: index(edam.operation),
-    topic: index(edam.topic)
-  };
-
-  function index(a) {
-    let map = {};
-    a.map(function(o, i) {
-      map[o.id] = i;
-    });
-    return map;
-  }
+  import EDAM from './edam';
 
   export default {
     name: 'tree-menu',
@@ -132,9 +107,9 @@
     },
     computed: {
       term() {
-        let index = edamIndexes[this.type][this.label];
+        let index = EDAM.index(this.type)[this.label];
         // return this.label;
-        return edam[this.type][index]['label'];
+        return EDAM.searchData[this.type][index]['label'];
       },
       triangleClasses() {
         return {

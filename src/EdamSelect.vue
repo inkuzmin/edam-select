@@ -2,7 +2,7 @@
   <div class="edam-select-wrap" :class="classObject">
     <div class="edam-select-container">
       <div class="edam-select-input-wrap">
-        <input type="text" placeholder="Filter EDAM data" @input="search">
+        <input type="text" v-bind:placeholder="placeholder" @input="search">
       </div>
     </div>
     <ul class="edam-select-menu">
@@ -31,68 +31,12 @@
 
 <script>
 
-  import edamHierarchy from './edam/edam-hierarchy';
-
-  import edamSearchData from './edam/edam-search-data';
-  import edamSearchFormat from './edam/edam-search-format';
-  import edamSearchOperation from './edam/edam-search-operation';
-  import edamSearchTopic from './edam/edam-search-topic';
-
   import Fuse from "fuse.js";
   import debounce from "debounce";
 
-  import TreeMenu from './TreeMenu'
+  import TreeMenu from './TreeMenu';
 
-  // this solution is not what I am proud of, need to think more about it
-  // TODO: or at least re-implement in more efficient way
-  function traverse(tree, path) {
-    tree.path = path;
-
-    tree.nodes && tree.nodes.forEach(function(child){
-      traverse(child, [ ...path, child.label ]);
-    });
-  }
-
-  // we can traverse only what is needed
-  /*traverse(edamHierarchy['data'], []);
-  traverse(edamHierarchy['format'], []);
-  traverse(edamHierarchy['operation'], []);
-  traverse(edamHierarchy['topic'], []);*/
-
-  const edamSearch = {
-    data: edamSearchData,
-    format: edamSearchFormat,
-    operation: edamSearchOperation,
-    topic: edamSearchTopic
-  };
-
-  function side(value, sideEffectFn) {
-    sideEffectFn();
-    return value;
-  }
-
-  let fuse;
-
-  function searchTree(predicate, getChildren, treeNode) {
-    function search(treeNode) {
-      if (!treeNode) {
-        return undefined;
-      }
-
-      for (let treeItem of treeNode) {
-        if (predicate(treeItem)) {
-          return treeItem;
-        }
-
-        const foundItem = search(getChildren(treeItem));
-
-        if (foundItem) {
-          return foundItem;
-        }
-      }
-    }
-    return search(treeNode);
-  }
+  import EDAM from './edam';
 
   export default {
     name: 'edam-select',
@@ -119,10 +63,13 @@
         default: 1
       }
     },
+    created() {
+      EDAM.index(this.type);
+    },
     data() {
       return {
-        tree: edamHierarchy[this.type],
-        fuse: new Fuse(edamSearch[this.type], {
+        tree: EDAM.hierarchy[this.type],
+        fuseSearchLabel: new Fuse(EDAM.searchData[this.type], {
           keys: ['label'],
           shouldSort: true,
           includeMatches: true,
@@ -132,7 +79,26 @@
           maxPatternLength: 32,
           minMatchCharLength: 1
         }),
-        data: edamSearch[this.type],
+        fuseSearchSynonyms: new Fuse(EDAM.searchData[this.type], {
+          keys: ['synonyms'],
+          shouldSort: true,
+          includeMatches: true,
+          threshold: 0.3,
+          location: 0,
+          distance: 100,
+          maxPatternLength: 32,
+          minMatchCharLength: 1
+        }),
+        fuseSearchDescriptions: new Fuse(EDAM.searchData[this.type], {
+          keys: ['description'],
+          shouldSort: true,
+          includeMatches: true,
+          threshold: 0.3,
+          location: 0,
+          distance: 100,
+          maxPatternLength: 32,
+          minMatchCharLength: 1
+        }),
         status: [
           'opened', // when triangle or click on selector
           'filtered', // when search return the list with results
@@ -147,6 +113,9 @@
       }
     },
     watch: {
+      type: function(value) {
+        console.log(value);
+      },
       status: function(value) {
         if (['opened', 'filtered', 'filteredButNothingWasFound',
             'unfiltered', 'closed', 'focused', 'selected'].indexOf(value) === -1) {
@@ -156,19 +125,48 @@
     },
     methods: {
       search: debounce(function (e) {
-        let results = fuse.search(e.target.value);
+        let results = this.fuseSearchLabel.search(e.target.value);
 
-        // console.log(this.type)
-        let found = [];
-        results.forEach(function(result) {
+        results.forEach((result) => {
+          this.highlightedResults.push(result.item.id);
+          this.searchResults.push(result.item.id);
+
+          let ids = this.addParents(result.item.id, []);
+          console.log(ids);
 
         });
 
 
-        console.log(results);
-      }, 500)
+
+        // console.log(this.type)
+
+        // console.log(results);
+      }, 500),
+
+      addParents: function (id, acc) {
+          let index = EDAM.index(this.type)[id];
+          console.log(id, index);
+
+          let data = EDAM.searchData[this.type][index];
+
+          acc = [...acc, id];
+
+          data['parent_ids'] && data['parent_ids'].forEach((parentId) => {
+            acc = this.addParents(parentId, acc);
+            // console.log(123);
+          });
+
+          return acc;
+      }
     },
     computed: {
+      test: function () {
+        console.log(this.type);
+        return 1;
+      },
+      placeholder: function () {
+        return 'Filter EDAM ' + this.type;
+      },
       classObject: function () {
         return {
           'is-inline': true,

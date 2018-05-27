@@ -18,6 +18,8 @@
 
         :initDepth="initDepth"
         :status="status"
+        :searchResults="searchResults"
+        :highlightedResults="highlightedResults"
 
       ></li>
     </ul>
@@ -75,7 +77,7 @@
           keys: ['label'],
           shouldSort: true,
           includeMatches: true,
-          threshold: 0.3,
+          threshold: 0.1,
           location: 0,
           distance: 100,
           maxPatternLength: 32,
@@ -132,14 +134,19 @@
         let found = [];
         results.forEach((result) => {
           this.highlightedResults.push(result.item.id);
-          this.searchResults.push(result.item.id);
+          // this.searchResults.push(result.item.id);
 
           let ids = this.addParents(result.item.id, []);
 
           found = _.uniq(_.flatten([found, ids]));
         });
 
-        console.log(found);
+        console.log("search:", found);
+        console.log("highlighted:", this.highlightedResults);
+
+        this.status = "filtered";
+        this.searchResults = found;
+        // this.highlightedResults = results;
 
       }, 500),
 

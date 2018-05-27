@@ -22,7 +22,8 @@
 
         :initDepth="initDepth"
         :status="status"
-        :showParent="showMe"
+        :searchResults="searchResults"
+        :highlightedResults="highlightedResults"
       >
       </li>
     </ul>
@@ -35,11 +36,11 @@
 
   export default {
     name: 'tree-menu',
-    props: ['nodes', 'label', 'depth', 'type', 'status', 'initDepth', 'showParent'],
+    props: ['nodes', 'label', 'depth', 'type', 'status', 'initDepth', 'searchResults', 'highlightedResults'],
     data() {
       return {
-        disclosed: this.depth < this.initDepth,
-        show: true,
+        disclosed: this.status === "opened" ? (this.depth < this.initDepth) : this.isInSearchResults(),
+        show: this.status === "opened" ? true : this.isInSearchResults(),
         inferred: false
       }
     },
@@ -52,11 +53,13 @@
             break;
 
           case "filtered":
-            this.show = this.isInSearchResults() || this.hasFoundChildren();
-            if (this.show) {
-              this.$parent.showMe();
-            //   this.showParent && this.showParent();
-            }
+            this.disclosed = this.isInSearchResults();
+            this.show = this.isInSearchResults(); // || this.hasFoundChildren();
+
+            // if (this.nodes && this.nodes.length > 0) {
+            //   this.disclosed = true;
+            // }
+
             break;
 
           case "filteredButNothingWasFound":
@@ -81,28 +84,14 @@
     },
 
     methods: {
-      hasFoundChildren() {
-
-      //   let children = this.nodes.map(function(o) {
-      //     return o.label;
-      //   });
-      //   let U = [...new Set([3637, 3760, 3638])].filter(x => new Set(children).has(x)).length > 0;
-      //   console.log(U);
-      //   return U;
-      },
       toggleChildren() {
         this.disclosed = !this.disclosed;
       },
       isInSearchResults() {
-        let r = [3637, 3760, 3638].indexOf(this.label) !== -1;
-        return r;
+        return this.searchResults.indexOf(this.label) !== -1;
       },
-      showMe() {
-        this.show = true;
-        this.disclosed = true;
-        this.inferred = true;
-        // console.log(this.showParent);
-        this.$parent.showMe && this.$parent.showMe();
+      isInHighlightedResults() {
+        return this.highlightedResults.indexOf(this.label) !== -1;
       }
     },
     computed: {
@@ -117,7 +106,10 @@
         }
       },
       labelClasses() {
-        return {'has-children': this.nodes}
+        return {
+          'has-children': this.nodes,
+          'highlighted': this.isInHighlightedResults()
+        }
       },
       indent() {
         return {transform: `translate(${this.depth - 0.5}em)`}
@@ -152,6 +144,10 @@
   .span {
     display: inline-block;
     width: 10px;
+  }
+
+  .highlighted {
+    background-color: yellow;
   }
 
   .triangle {

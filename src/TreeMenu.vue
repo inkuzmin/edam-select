@@ -1,10 +1,14 @@
 <template>
   <li class="tree-menu" :style="isShown">
-    <div class="label-wrapper" @click="toggleChildren" v-if="depth > 0">
+    <div class="label-wrapper" v-if="depth > 0">
       <div :style="indent" :class="labelClasses">
-        <i v-if="nodes" class="triangle" :class="triangleClasses"></i>
+        <span v-if="nodes" class="triangle-wrap" @click="toggleChildren">
+          <i class="triangle" :class="triangleClasses"></i>
+        </span>
         <i v-else class="span"></i>
-        {{ term }}
+        <span class="term">{{ term }}</span>
+        <!--<i v-if="status === 'filtered' && nodes && disclosed" @click="toggleFilter">x</i>-->
+        <i v-if="touched">x</i>
       </div>
     </div>
     <ul>
@@ -22,8 +26,8 @@
 
         :initDepth="initDepth"
         :status="status"
+        :disclosureResults="disclosureResults"
         :searchResults="searchResults"
-        :highlightedResults="highlightedResults"
       >
       </li>
     </ul>
@@ -36,36 +40,60 @@
 
   export default {
     name: 'tree-menu',
-    props: ['nodes', 'label', 'depth', 'type', 'status', 'initDepth', 'searchResults', 'highlightedResults'],
+    props: ['nodes', 'label', 'depth', 'type', 'status', 'initDepth', 'disclosureResults', 'searchResults'],
     data() {
       return {
-        disclosed: this.status === "opened" ? (this.depth < this.initDepth) : this.isInSearchResults(),
-        show: this.status === "opened" ? true : this.isInSearchResults(),
-        inferred: false
+        disclosed: false,
+        show: false,
+        inferred: false,
+        touched: false
       }
     },
     watch: {
-      status: function (value) {
-        switch (value) {
+      status: function () {
+        this.filter();
+      },
+      searchResults: function () {
+        this.filter();
+      }
+    },
+
+    methods: {
+      toggleFilter() {
+        // switch (this.status) {
+        //   case "filtered":
+        //       _.each(this.$children, function (child) {
+        //         child.show = true;
+        //       });
+        //     this._status = 'unfiltered';
+        //     break;
+        //   case "unfiltered":
+        //     _.each(this.$children, (child) => {
+        //       child.show = child.isInDisclosureResults() || child.isInSearchResults();
+        //     });
+        //     this._status = 'filtered';
+        //     break;
+        // }
+      },
+      filter() {
+        switch (this.status) {
           case "opened":
             this.show = true;
             this.disclosed = this.depth < this.initDepth;
             break;
 
           case "filtered":
-            this.disclosed = this.isInSearchResults();
-            this.show = this.isInSearchResults(); // || this.hasFoundChildren();
-
-            // if (this.nodes && this.nodes.length > 0) {
-            //   this.disclosed = true;
-            // }
-
+            this.show = this.isInDisclosureResults() || this.isInSearchResults();
+            this.disclosed = this.isInDisclosureResults();
             break;
 
           case "filteredButNothingWasFound":
+            // do nothing
             break;
 
           case "unfiltered":
+            this.show = true;
+            // this.disclosed = this.isInDisclosureResults();
             break;
 
           case "closed":
@@ -80,19 +108,33 @@
           default:
             throw "Unknown status";
         }
-      }
-    },
-
-    methods: {
+      },
       toggleChildren() {
+        this.touched = true;
+
         this.disclosed = !this.disclosed;
+
+        this.$nextTick(function () {
+          if (this.disclosed) {
+            _.each(this.$children, function (child) {
+              child.show = true;
+            });
+          } else {
+            _.each(this.$children, (child) => {
+              child.show = child.isInDisclosureResults() || child.isInSearchResults();
+            });
+          }
+        });
+      },
+      isInDisclosureResults() {
+        return this.disclosureResults.indexOf(this.label) !== -1;
       },
       isInSearchResults() {
         return this.searchResults.indexOf(this.label) !== -1;
-      },
-      isInHighlightedResults() {
-        return this.highlightedResults.indexOf(this.label) !== -1;
       }
+    },
+    created() {
+      this.filter();
     },
     computed: {
       term() {
@@ -108,10 +150,11 @@
       labelClasses() {
         return {
           'has-children': this.nodes,
-          'highlighted': this.isInHighlightedResults()
+          'highlighted': this.isInSearchResults()
         }
       },
       indent() {
+        return {'margin-left': `${this.depth - 0.5}em`};
         return {transform: `translate(${this.depth - 0.5}em)`}
       },
       isShown() {
@@ -142,16 +185,39 @@
   }
 
   .span {
-    display: inline-block;
-    width: 10px;
+    display: block;
+    width: 19px;
+    float: left;
+    height: 1px;
   }
 
   .highlighted {
-    background-color: yellow;
+    /*background-color: yellow;*/
+    border-right: 2px solid #666;
+  }
+
+  .triangle-wrap {
+    cursor: pointer;
+    display: block;
+    float: left;
+    width: 19px;
+    height: 18px;
+    text-align: center;
+
+    &:hover {
+      .triangle {
+        /*border-color: transparent #555 transparent;*/
+        opacity: 1;
+        transition: opacity 300ms;
+        /*&.opened {*/
+          /*border-color: #555 transparent transparent;*/
+        /*}*/
+      }
+    }
   }
 
   .triangle {
-    border-color: transparent #999 transparent;
+    border-color: transparent #666 transparent;
     border-style: solid;
     top: -1px;
     border-width: 5px 0 5px 5px;
@@ -161,9 +227,10 @@
     height: 0;
     width: 0;
     position: relative;
+    opacity: 0.5;
 
     &.opened {
-      border-color: #999 transparent transparent;
+      border-color: #666 transparent transparent;
       top: 0;
       margin: 0;
       border-width: 5px 5px 2.5px;

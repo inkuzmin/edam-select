@@ -5,7 +5,7 @@
         <input type="text" v-bind:placeholder="placeholder" @input="search">
       </div>
     </div>
-    <ul class="edam-select-menu">
+    <ul class="edam-select-menu" v-if="status !== 'filteredButNothingWasFound' && status !== 'closed'">
 
       <li
         is="tree-menu"
@@ -18,9 +18,8 @@
 
         :initDepth="initDepth"
         :status="status"
+        :disclosureResults="disclosureResults"
         :searchResults="searchResults"
-        :highlightedResults="highlightedResults"
-
       ></li>
     </ul>
 
@@ -34,7 +33,6 @@
 <script>
 
   import Fuse from "fuse.js";
-  import debounce from "debounce";
 
   import TreeMenu from './TreeMenu';
 
@@ -77,7 +75,7 @@
           keys: ['label'],
           shouldSort: true,
           includeMatches: true,
-          threshold: 0.1,
+          threshold: 0.3,
           location: 0,
           distance: 100,
           maxPatternLength: 32,
@@ -112,8 +110,8 @@
           'focused', // when input was focused with tab
           'selected' // when term was selected
         ][0],
-        searchResults: [],
-        highlightedResults: []
+        disclosureResults: [],
+        searchResults: []
       }
     },
     watch: {
@@ -128,29 +126,15 @@
       }
     },
     methods: {
-      search: debounce(function (e) {
-        let results = this.fuseSearchLabel.search(e.target.value);
-
-        let found = [];
-        results.forEach((result) => {
-          this.highlightedResults.push(result.item.id);
-          // this.searchResults.push(result.item.id);
-
-          let ids = this.addParents(result.item.id, []);
-
-          found = _.uniq(_.flatten([found, ids]));
-        });
-
-        console.log("search:", found);
-        console.log("highlighted:", this.highlightedResults);
-
-        this.status = "filtered";
-        this.searchResults = found;
-        // this.highlightedResults = results;
-
-      }, 500),
-
-      addParents: function (id, acc) {
+      search: function (e) {
+        if (e.target.value.length > 0) {
+          this._search(e);
+        } else {
+          this._search.cancel();
+          this.status = "unfiltered";
+        }
+      },
+      addParents: function (id, acc, shouldAdd) {
           let index = EDAM.index(this.type)[id];
 
           if (id === 'ok') {
@@ -159,20 +143,23 @@
 
           let data = EDAM.searchData[this.type][index];
 
-          acc = [...acc, id];
+          if (shouldAdd) {
+            acc = [...acc, id];
+          }
 
           data['parent_ids'] && data['parent_ids'].forEach((parentId) => {
-            acc = this.addParents(parentId, acc);
+            acc = this.addParents(parentId, acc, true);
           });
 
           return acc;
+      },
+      _clear: function () {
+        this.disclosureResults = [];
+        this.searchResults = [];
+        // this.status = "opened";
       }
     },
     computed: {
-      test: function () {
-        console.log(this.type);
-        return 1;
-      },
       placeholder: function () {
         return 'Filter EDAM ' + this.type;
       },
@@ -182,6 +169,33 @@
           'is-open': this.status === 'opened',
           'is-focused': false
         }
+      },
+      _search: function() {
+        return _.debounce(function (e) {
+          this._clear();
+
+          let results = this.fuseSearchLabel.search(e.target.value);
+
+          let found = [];
+          results.forEach((result) => {
+            this.searchResults.push(result.item.id);
+            // this.disclosureResults.push(result.item.id);
+
+            let ids = this.addParents(result.item.id, []);
+
+            found = _.uniq(_.flatten([found, ids]));
+          });
+
+          if (this.searchResults.length > 0) {
+            this.status = "filtered";
+            this.disclosureResults = found;
+          } else {
+            this.status = "filteredButNothingWasFound";
+          }
+
+          // console.log("search:", this.disclosureResults);
+          // console.log("highlighted:", this.searchResults);
+        }, 500)
       }
     }
   }
@@ -189,9 +203,6 @@
 
 
 <style lang="scss">
-
-
-  /* Common TODO: move to another place */
 
   body {
     width: 500px;
@@ -285,7 +296,7 @@
 
       .edam-select-menu-item {
         color: #666;
-        cursor: pointer;
+        /*cursor: pointer;*/
         /*padding: 0.2em 0.5em 0.2em;*/
         /*max-height: 1em;*/
       }

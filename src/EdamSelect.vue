@@ -11,13 +11,11 @@
         is="tree-menu"
         class="edam-select-menu-item"
 
-        :nodes="tree.nodes"
+        :nodes="tree.children"
         :depth="0"
         :label="tree.label"
-        :type="type"
+        :id="tree.id"
 
-        :initDepth="initDepth"
-        :status="status"
         :disclosureResults="disclosureResults"
         :searchResults="searchResults"
       ></li>
@@ -40,25 +38,24 @@
 
   import _ from 'lodash';
 
+  import store from './store'
+
+  // import 'es6-promise/auto'
+  // import Vuex from 'vuex'
+  // Vue.use(Vuex);
+
   export default {
     name: 'edam-select',
     components: {
       'tree-menu': TreeMenu
     },
+    store,
     props: {
       'type': {
         type: String,
         validator: value => {
           return ['format', 'data', 'topic', 'operation'].indexOf(value) !== -1;
         }
-      },
-      'inline': {
-        type: Boolean,
-        default: false
-      },
-      'opened': {
-        type: Boolean,
-        default: false
       },
       'initDepth': {
         type: Number,
@@ -67,10 +64,16 @@
     },
     created() {
       EDAM.index(this.type);
+
+      this.$store.commit('initialize', {
+        type: this.type,
+        initDepth: this.initDepth
+      });
+
     },
     data() {
       return {
-        tree: EDAM.hierarchy[this.type],
+        // tree: EDAM.getNode(this.type, 'root'),
         fuseSearchLabel: new Fuse(EDAM.searchData[this.type], {
           keys: ['label'],
           shouldSort: true,
@@ -81,48 +84,8 @@
           maxPatternLength: 32,
           minMatchCharLength: 1
         }),
-        fuseSearchSynonyms: new Fuse(EDAM.searchData[this.type], {
-          keys: ['synonyms'],
-          shouldSort: true,
-          includeMatches: true,
-          threshold: 0.3,
-          location: 0,
-          distance: 100,
-          maxPatternLength: 32,
-          minMatchCharLength: 1
-        }),
-        fuseSearchDescriptions: new Fuse(EDAM.searchData[this.type], {
-          keys: ['description'],
-          shouldSort: true,
-          includeMatches: true,
-          threshold: 0.3,
-          location: 0,
-          distance: 100,
-          maxPatternLength: 32,
-          minMatchCharLength: 1
-        }),
-        status: [
-          'opened', // when triangle or click on selector
-          'filtered', // when search return the list with results
-          'filteredButNothingWasFound', // when search returned []
-          'unfiltered', // when input set to "" or clear
-          'closed', // when triangle or ESC or click outside the selector
-          'focused', // when input was focused with tab
-          'selected' // when term was selected
-        ][0],
         disclosureResults: [],
         searchResults: []
-      }
-    },
-    watch: {
-      type: function(value) {
-        console.log(value);
-      },
-      status: function(value) {
-        if (['opened', 'filtered', 'filteredButNothingWasFound',
-            'unfiltered', 'closed', 'focused', 'selected'].indexOf(value) === -1) {
-          throw "Unknown status";
-        }
       }
     },
     methods: {
@@ -131,6 +94,8 @@
           this._search(e);
         } else {
           this._search.cancel();
+          console.log("clear");
+
           this.status = "unfiltered";
         }
       },
@@ -147,7 +112,7 @@
             acc = [...acc, id];
           }
 
-          data['parent_ids'] && data['parent_ids'].forEach((parentId) => {
+          data['parents'] && data['parents'].forEach((parentId) => {
             acc = this.addParents(parentId, acc, true);
           });
 
@@ -160,6 +125,23 @@
       }
     },
     computed: {
+      tree() {
+        return this.$store.getters.getNode('root');
+      },
+      status: {
+        get () {
+          return this.$store.state.status;
+        },
+        set(value){
+          // console.log(value);
+          if (['opened', 'filtered', 'filteredButNothingWasFound',
+              'unfiltered', 'closed', 'focused', 'selected'].indexOf(value) === -1) {
+            throw "Unknown status";
+          } else {
+            this.$store.commit('updateStatus', value);
+          }
+        }
+      },
       placeholder: function () {
         return 'Filter EDAM ' + this.type;
       },
@@ -193,8 +175,8 @@
             this.status = "filteredButNothingWasFound";
           }
 
-          // console.log("search:", this.disclosureResults);
-          // console.log("highlighted:", this.searchResults);
+          console.log("search:", this.disclosureResults);
+          console.log("highlighted:", this.searchResults);
         }, 500)
       }
     }

@@ -2,13 +2,13 @@
   <li class="tree-menu" :style="isShown">
     <div class="label-wrapper" v-if="depth > 0">
       <div :style="indent" :class="labelClasses">
-        <span v-if="nodes" class="triangle-wrap" @click="toggleChildren">
+        <span v-if="children.length > 0" class="triangle-wrap" @click="toggleChildren">
           <i class="triangle" :class="triangleClasses"></i>
         </span>
         <i v-else class="span"></i>
-        <span class="term">{{ term }}</span>
+        <span class="term">{{ term.label }}</span>
         <!--<i v-if="status === 'filtered' && nodes && disclosed" @click="toggleFilter">x</i>-->
-        <i v-if="touched">x</i>
+        <!--<i v-if="touched">x</i>-->
       </div>
     </div>
     <ul>
@@ -17,15 +17,14 @@
         class="edam-select-menu-item"
 
         v-if="disclosed"
-        v-for="node in nodes"
-        :nodes="node.nodes"
+        v-for="node in children"
+        :nodes="node.children"
         :label="node.label"
+        :id="node.id"
+
         :key="node.label"
         :depth="depth + 1"
-        :type="type"
 
-        :initDepth="initDepth"
-        :status="status"
         :disclosureResults="disclosureResults"
         :searchResults="searchResults"
       >
@@ -35,56 +34,51 @@
 </template>
 
 <script>
-
   import EDAM from './edam';
 
+  import store from './store'
+
   export default {
+    // store,
     name: 'tree-menu',
-    props: ['nodes', 'label', 'depth', 'type', 'status', 'initDepth', 'disclosureResults', 'searchResults'],
-    data() {
-      return {
-        disclosed: false,
-        show: false,
-        inferred: false,
-        touched: false
-      }
-    },
+    props: ['nodes', 'label', 'id', 'depth', 'disclosureResults', 'searchResults'],
     watch: {
       status: function () {
-        this.filter();
+        this.flush()
+        this.init();
       },
       searchResults: function () {
-        this.filter();
+        this.init();
       }
     },
 
     methods: {
-      toggleFilter() {
-        // switch (this.status) {
-        //   case "filtered":
-        //       _.each(this.$children, function (child) {
-        //         child.show = true;
-        //       });
-        //     this._status = 'unfiltered';
-        //     break;
-        //   case "unfiltered":
-        //     _.each(this.$children, (child) => {
-        //       child.show = child.isInDisclosureResults() || child.isInSearchResults();
-        //     });
-        //     this._status = 'filtered';
-        //     break;
-        // }
+      _useIfDefined(val, next) {
+        if (typeof val !== "undefined") {
+          return val;
+        } else {
+          return next;
+        }
       },
-      filter() {
+
+      flush() {
+        this.$store.commit('flush');
+      },
+
+      numberOfHiddenChildren() {
+        return _.sumBy(this.children, node => !node.show);
+      },
+
+      init() {
         switch (this.status) {
           case "opened":
             this.show = true;
-            this.disclosed = this.depth < this.initDepth;
+            this.disclosed = this._useIfDefined(this.disclosed, (this.depth < this.initDepth));
             break;
 
           case "filtered":
             this.show = this.isInDisclosureResults() || this.isInSearchResults();
-            this.disclosed = this.isInDisclosureResults();
+            this.disclosed = this._useIfDefined(this.disclosed, this.isInDisclosureResults());
             break;
 
           case "filteredButNothingWasFound":
@@ -93,7 +87,7 @@
 
           case "unfiltered":
             this.show = true;
-            // this.disclosed = this.isInDisclosureResults();
+            this.disclosed = this._useIfDefined(this.disclosed, (this.depth < this.initDepth));
             break;
 
           case "closed":
@@ -110,37 +104,57 @@
         }
       },
       toggleChildren() {
-        this.touched = true;
-
         this.disclosed = !this.disclosed;
 
-        this.$nextTick(function () {
-          if (this.disclosed) {
-            _.each(this.$children, function (child) {
-              child.show = true;
-            });
-          } else {
-            _.each(this.$children, (child) => {
-              child.show = child.isInDisclosureResults() || child.isInSearchResults();
-            });
-          }
-        });
+        // console.log(this.$store.state.type);
+        // console.log(this.numberOfHiddenChildren());
       },
       isInDisclosureResults() {
-        return this.disclosureResults.indexOf(this.label) !== -1;
+        return this.disclosureResults.indexOf(this.id) !== -1;
       },
       isInSearchResults() {
-        return this.searchResults.indexOf(this.label) !== -1;
+        return this.searchResults.indexOf(this.id) !== -1;
       }
     },
     created() {
-      this.filter();
+      this.init();
     },
     computed: {
+      status: {
+        get () {
+          return this.$store.state.status;
+        }
+      },
+      children() {
+        return _.map(this.nodes, (node) => {
+          return this.$store.getters.getNode(node);
+        })
+      },
       term() {
-        let index = EDAM.index(this.type)[this.label];
-        // return this.label;
-        return EDAM.searchData[this.type][index]['label'];
+        return this.$store.state.data[this.$store.state.indices[this.id]]
+      },
+      disclosed: {
+        get() {
+          return this.$store.state.data[this.$store.state.indices[this.id]]['disclosed'];
+        },
+        set(val) {
+          this.$store.commit('setProp', [this.id, 'disclosed', val]);
+        }
+      },
+
+      show: {
+        get() {
+          return this.$store.state.data[this.$store.state.indices[this.id]]['show']
+        },
+        set(val) {
+          this.$store.commit('setProp', [this.id, 'show', val]);
+        }
+      },
+      type() {
+        return this.$store.state.type;
+      },
+      initDepth() {
+        return this.$store.state.initDepth;
       },
       triangleClasses() {
         return {
@@ -210,7 +224,7 @@
         opacity: 1;
         transition: opacity 300ms;
         /*&.opened {*/
-          /*border-color: #555 transparent transparent;*/
+        /*border-color: #555 transparent transparent;*/
         /*}*/
       }
     }

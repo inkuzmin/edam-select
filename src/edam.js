@@ -12,14 +12,17 @@ export default {
       return this.model[type][this.index(type)[ nodeId ]];
     }
   },
+  getById(type, nodeId) {
+    return this.model[type][this.index(type)[ nodeId ]];
+  },
   index(type) {
-    if (this.indexes[type]) { // if cached return cache
+    if (!!this.indexes[type]) { // if cached return cache
       return this.indexes[type];
     } else { // else create indexes
       let map = {};
       let a = this.model[type];
       a.map(function (o, i) {
-        map[o.id] = i;
+        map[o[0]] = i;
       });
       this.indexes[type] = map;
       return map;

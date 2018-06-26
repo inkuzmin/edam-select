@@ -6,20 +6,29 @@ import './polyfills.js';
 
 import Fuse from "fuse.js";
 
-window.EDAM = EDAM;
-
 class EdamSelect {
   constructor(sel, params) {
     this.el = this.generateEdamSelectView();
     document.querySelector(sel).appendChild(this.el);
 
-    this.type = params.type;
-    this.initDepth = params.initDepth;
+    if (['format', 'data', 'topic', 'operation'].indexOf(params.type) !== -1) {
+      this.type = params.type;
+    } else {
+      throw new Error("Unknown type. Should be one of [ format | data | topic | operation ].");
+    }
+    this.initDepth = params.initDepth || 1;
 
-    this.model = EDAM.model[this.type];
-    this.rootId = EDAM.model.roots[this.type];
+    this.edam = new EDAM(this.type);
 
-    this.index = EDAM.index(this.type); // singleton for returning indexes
+    // window.edam = this.edam;
+
+    this.model = this.edam.model;
+    this.rootId = this.edam.getRoot();
+
+    this.index = this.edam.index(); // singleton for returning indexes
+
+    // underscore for such accessors (see below)
+    this._status = 'opened';
 
     console.time('Fuse init');
     this.fuse = new Fuse(this.model, {
@@ -40,7 +49,26 @@ class EdamSelect {
     this.disclosureResults = [];
     this.searchResults = [];
 
+    // Another optimisation, we store all model changes here to revert them easily
+    // For now it is enough to store ids, but if something more complex would be required
+    // it could be refactored to Change object
+    this.changed = [];
+
     this.init();
+  }
+
+  get status() {
+    return this._status;
+  }
+
+  set status(value){ // wow so valid
+    if (['opened', 'filtered', 'filteredButNothingWasFound',
+        'unfiltered', 'closed', 'focused', 'selected'].indexOf(value) === -1) {
+      // custom error messages are recognisable by the absence of explanation marks
+      throw new Error("Unknown status"); // dot is optional tho
+    } else {
+      this._status = value;
+    }
   }
 
   init() {
@@ -53,7 +81,10 @@ class EdamSelect {
     let treeMenu = new TreeMenu(term, {
       initDepth: this.initDepth,
       depth: 0,
-      type: this.type
+      type: this.type,
+      status: this.status,
+      edam: this.edam
+      // changed: this.changed -- no, this is child - parent channel, it should be impl. with events...
     });
 
     this.append(treeMenu);
@@ -89,11 +120,12 @@ class EdamSelect {
 
     edamSelectMenuWrap.appendChild(edamSelectMenu);
 
-
     // event handlers will be here
     input.addEventListener('input', (e) => {
       this.search(e);
     });
+
+    // edamSelectWrap.addEventListener('')
 
     return edamSelectWrap;
   }
@@ -126,8 +158,9 @@ class EdamSelect {
       } else {
         this.status = "filteredButNothingWasFound";
       }
-      // console.log("disclosure:", this.disclosureResults);
-      // console.log("search:", this.searchResults);
+
+      console.log("disclosure:", this.disclosureResults);
+      console.log("search:", this.searchResults);
       console.timeEnd('Search');
     }, 500);
   }
@@ -170,15 +203,17 @@ class TreeMenu {
   constructor(term, params) {
     this.term = term;
 
-    this.attachAccessors(this.term);
+    this.initDepth = params.initDepth;
+    this.depth = params.depth;
+    this.type = params.type;
+    this.status = params.status;
+    this.edam = params.edam;
+
+    // this.attachAccessors(this.term);
     // now can do this:
     // this.term.set('label', 'test');
     // this.term.get('label');
     // by the way, it's good time to fulfill the model with custom fields
-
-    this.initDepth = params.initDepth;
-    this.depth = params.depth;
-    this.type = params.type;
 
     this.el = this.generateEdamSelectMenuItemView();
     return this.el;
@@ -186,9 +221,10 @@ class TreeMenu {
 
   // never look inside this function
   // now it's fine
+  // it was nice idea, but... whatever
   attachAccessors(term) {
     term.get = function(what) { // this is more elegant, but could be slower
-      let idx = EDAM.model.schema.indexOf(what);
+      let idx = this.edam.getSchema().indexOf(what);
       if (idx === -1) {
         throw new Error(`No ${what} field in term`);
       } else {
@@ -196,7 +232,7 @@ class TreeMenu {
       }
     };
     term.set = function(what, forTheReal) { // this is more elegant, but could be slower
-      let idx = EDAM.model.schema.indexOf(what);
+      let idx = this.edam.getSchema().indexOf(what);
       if (idx === -1) {
         throw new Error(`No ${what} field in term`);
       } else {
@@ -279,7 +315,7 @@ class TreeMenu {
       labelIndent.appendChild(term);
       triangleWrap.appendChild(triangle);
 
-      let text = document.createTextNode(this.term.get('label'));
+      let text = document.createTextNode(this.term[1]);
       term.appendChild(text);
 
       // to save operations on access to elements we can add handlers right here?
@@ -308,7 +344,9 @@ class TreeMenu {
         ul.appendChild(new TreeMenu(term, {
           initDepth: this.initDepth,
           depth: this.depth + 1,
-          type: this.type
+          type: this.type,
+          status: this.status,
+          edam: this.edam,
         }));
       });
     }
@@ -317,18 +355,30 @@ class TreeMenu {
   }
 
   getChildren() {
-    return this.term.get('children[]').map(id => EDAM.getById(this.type, id));
+    return this.term[4].map(id => this.edam.getById(id)); // term[4] is children field
   }
 
   isShown() {
-    return true;
+    switch (this.status) {
+      case "opened":
+        return true;
+      default:
+        throw new Error("Huh, unknown status, how could this happen?");
+    }
   }
 
   isDisclosed() {
-    if (!!this.term['disclosed']) {
-      return this.term['disclosed'];
-    } else {
-      return this.depth < this.initDepth;
+    switch (this.status) {
+      case "opened":
+        if (!!this.term['disclosed']) {
+          return this.term['disclosed'];
+        } else {
+          return this.depth < this.initDepth;
+        }
+      case "filtered":
+        return 0;
+      default:
+        throw new Error("Huh, unknown status, how could this happen?");
     }
   }
 
@@ -343,7 +393,9 @@ class TreeMenu {
     this.el.parentNode.replaceChild(new TreeMenu(this.term, {
       initDepth: this.initDepth,
       depth: this.depth,
-      type: this.type
+      type: this.type,
+      status: this.status,
+      edam: this.edam,
     }), this.el);
     console.timeEnd('Disclose');
   }
@@ -356,6 +408,26 @@ class TreeMenu {
 console.time('Application');
 
 let edamSelect = new EdamSelect('#app', {
+  initDepth: 1,
+  type: 'data'
+});
+
+let edamSelect2 = new EdamSelect('#app', {
+  initDepth: 1,
+  type: 'data'
+});
+
+let edamSelect3 = new EdamSelect('#app', {
+  initDepth: 1,
+  type: 'data'
+});
+
+let edamSelect4 = new EdamSelect('#app', {
+  initDepth: 1,
+  type: 'data'
+});
+
+let edamSelect5 = new EdamSelect('#app', {
   initDepth: 1,
   type: 'data'
 });

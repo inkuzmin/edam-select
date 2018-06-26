@@ -1,45 +1,60 @@
-import edam from './edam.json'
+import edam from './edam.json';
 
-export default {
-  getNode(type, nodeId) {
-    if (nodeId === 'root') {
-      for (var i = 0; i < this.model[type][0].children.length; i++) {
-        if (this.model[type][0].children[i].indexOf(type) !== -1) {
-          return this.model[type][this.index(type)[ this.model[type][0].children[i] ]];
+let indexes = {
+  data: null,
+  format: null,
+  operation: null,
+  topic: null
+};
+
+class EDAM {
+  constructor(type) {
+    this.type = type;
+    this.model = this.clone(edam[this.type]);
+  }
+
+  clone(list) {
+    let i, v, l = list.length, result = [];
+    for (i = 0; i < l; i += 1) {
+      v = list[i];
+      if (Array.isArray(v)) {
+        let j, vv = [], ll = v.length;
+        for (j = 0; j < ll; j += 1) {
+          vv.push(v[j]);
         }
+        result.push(vv);
+      } else {
+        result.push(v);
       }
-    } else {
-      return this.model[type][this.index(type)[ nodeId ]];
     }
-  },
-  getById(type, nodeId) {
-    return this.model[type][this.index(type)[ nodeId ]];
-  },
-  index(type) {
-    if (!!this.indexes[type]) { // if cached return cache
-      return this.indexes[type];
+    return result;
+  }
+
+  getRoot() {
+    return edam['roots'][this.type];
+  }
+
+  getSchema() {
+    return edam['schema'];
+  }
+
+  getById(nodeId) {
+    return this.model[this.index()[ nodeId ]];
+  }
+
+  index() {
+    if (!!indexes[this.type]) { // if cached return cache
+      return indexes[this.type];
     } else { // else create indexes
       let map = {};
-      let a = this.model[type];
+      let a = this.model;
       a.map(function (o, i) {
         map[o[0]] = i;
       });
-      this.indexes[type] = map;
+      indexes[this.type] = map;
       return map;
     }
-  },
-  model: {
-    data: edam['data'],
-    format: edam['format'],
-    operation: edam['operation'],
-    topic: edam['topic'],
-    schema: edam['schema'],
-    roots: edam['roots']
-  },
-  indexes: {
-    data: null,
-    format: null,
-    operation: null,
-    topic: null
   }
 }
+
+export default EDAM;

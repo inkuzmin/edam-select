@@ -8,6 +8,8 @@ import Fuse from "fuse.js";
 
 class EdamSelect {
   constructor(sel, params) {
+    this.id = ++EdamSelect.id;
+
     this.el = this.generateEdamSelectView();
     document.querySelector(sel).appendChild(this.el);
 
@@ -19,8 +21,6 @@ class EdamSelect {
     this.initDepth = params.initDepth || 1;
 
     this.edam = new EDAM(this.type);
-
-    // window.edam = this.edam;
 
     this.model = this.edam.model;
     this.rootId = this.edam.getRoot();
@@ -67,12 +67,24 @@ class EdamSelect {
       // custom error messages are recognisable by the absence of explanation marks
       throw new Error("Unknown status"); // dot is optional tho
     } else {
+
+      if (this._status !== value) {
+        let i, l = this.changed.length;
+        for (i = 0; i < l; i += 1) {
+          let nodeId = this.changed.pop();
+          let term = this.model[this.index[nodeId]];
+          term['disclosed'] = undefined;
+          term['shown'] = undefined;
+        }
+      }
+
       this._status = value;
+
+      this.init();
     }
   }
 
   init() {
-
     console.time('Tree rendering');
 
     let idx = this.index[this.rootId];
@@ -83,14 +95,16 @@ class EdamSelect {
       depth: 0,
       type: this.type,
       status: this.status,
-      edam: this.edam
+      edam: this.edam,
+      id: this.id,
+      searchResults: this.searchResults,
+      disclosureResults: this.disclosureResults,
       // changed: this.changed -- no, this is child - parent channel, it should be impl. with events...
     });
 
     this.append(treeMenu);
 
     console.timeEnd('Tree rendering');
-
   }
 
   generateEdamSelectView() {
@@ -125,7 +139,9 @@ class EdamSelect {
       this.search(e);
     });
 
-    // edamSelectWrap.addEventListener('')
+    document.addEventListener(`edam:${this.id}:change`, (e) => {
+      this.changed.push(e.detail);
+    });
 
     return edamSelectWrap;
   }
@@ -193,11 +209,18 @@ class EdamSelect {
     return ancestors;
   }
 
-  append(v) {
-    this.el.getElementsByClassName(style['edam-select-menu'])[0]
-      .appendChild(v);
+  append(newTree) {
+    let wrap = this.el.getElementsByClassName(style['edam-select-menu'])[0];
+    let currentTree = wrap.firstChild;
+
+    if (currentTree) {
+      wrap.replaceChild(newTree, currentTree);
+    } else {
+      wrap.appendChild(newTree);
+    }
   }
 }
+EdamSelect.id = 0;
 
 class TreeMenu {
   constructor(term, params) {
@@ -208,6 +231,9 @@ class TreeMenu {
     this.type = params.type;
     this.status = params.status;
     this.edam = params.edam;
+    this.id = params.id;
+    this.disclosureResults = params.disclosureResults;
+    this.searchResults = params.searchResults;
 
     // this.attachAccessors(this.term);
     // now can do this:
@@ -313,6 +339,7 @@ class TreeMenu {
 
       labelIndent.appendChild(triangleWrap);
       labelIndent.appendChild(term);
+
       triangleWrap.appendChild(triangle);
 
       let text = document.createTextNode(this.term[1]);
@@ -320,11 +347,16 @@ class TreeMenu {
 
       // to save operations on access to elements we can add handlers right here?
       triangleWrap.addEventListener('click', () => {
+        let event = new CustomEvent('edam:' + this.id + 'change', {
+          detail: this.term[0]
+        });
+        document.dispatchEvent(event);
+
         this.disclose();
       });
 
       // styles go here for the same reason
-      labelIndent.style.marginLeft = `${this.depth - 0.5}em`;
+      labelIndent.style.marginLeft = (this.depth - 0.5) + 'em';
 
       if (children.length === 0) {
         triangleWrap.style.visibility = 'hidden';
@@ -332,6 +364,12 @@ class TreeMenu {
 
       if (this.isDisclosed()) {
         triangle.classList.add(style['opened']);
+      }
+
+      if (this.isInSearchResults()) {
+        labelIndent.classList.add(style['highlighted']);
+      } else {
+        labelIndent.classList.remove(style['highlighted']);
       }
 
     }
@@ -347,8 +385,17 @@ class TreeMenu {
           type: this.type,
           status: this.status,
           edam: this.edam,
+          id: this.id,
+          searchResults: this.searchResults,
+          disclosureResults: this.disclosureResults,
         }));
       });
+    }
+
+    if (this.isShown()) {
+      treeMenu.style.display = '';
+    } else {
+      treeMenu.style.display = 'none';
     }
 
     return treeMenu;
@@ -362,6 +409,12 @@ class TreeMenu {
     switch (this.status) {
       case "opened":
         return true;
+      case "filtered":
+        if (this.term['shown'] === undefined) {
+          return this.isInDisclosureResults() || this.isInSearchResults();
+        } else {
+          return this.term['shown'];
+        }
       default:
         throw new Error("Huh, unknown status, how could this happen?");
     }
@@ -370,24 +423,34 @@ class TreeMenu {
   isDisclosed() {
     switch (this.status) {
       case "opened":
-        if (!!this.term['disclosed']) {
-          return this.term['disclosed'];
-        } else {
+        if (this.term['disclosed'] === undefined) {
           return this.depth < this.initDepth;
+        } else {
+          return this.term['disclosed'];
         }
       case "filtered":
-        return 0;
+        if (this.term['disclosed'] === undefined) {
+          return this.isInDisclosureResults();
+        } else {
+          return this.term['disclosed'];
+        }
       default:
-        throw new Error("Huh, unknown status, how could this happen?");
+        throw new Error(`Huh, unknown status [${this.status}], how could this happen?`);
     }
   }
 
   disclose() {
     console.time('Disclose');
+
     if (this.isDisclosed()) {
       this.term['disclosed'] = false;
     } else {
       this.term['disclosed'] = true;
+
+      let i, l = this.term[4].length; // children
+      for (i = 0; i < l; i += 1) {
+        this.edam.model[this.edam.index()[this.term[4][i]]]['shown'] = true;
+      }
     }
 
     this.el.parentNode.replaceChild(new TreeMenu(this.term, {
@@ -396,8 +459,20 @@ class TreeMenu {
       type: this.type,
       status: this.status,
       edam: this.edam,
+      id: this.id,
+      searchResults: this.searchResults,
+      disclosureResults: this.disclosureResults,
     }), this.el);
+
     console.timeEnd('Disclose');
+  }
+
+  isInDisclosureResults() {
+    return this.disclosureResults.indexOf(this.term[0]) !== -1;
+  }
+
+  isInSearchResults() {
+    return this.searchResults.indexOf(this.term[0]) !== -1;
   }
 
   remove() {
@@ -408,26 +483,6 @@ class TreeMenu {
 console.time('Application');
 
 let edamSelect = new EdamSelect('#app', {
-  initDepth: 1,
-  type: 'data'
-});
-
-let edamSelect2 = new EdamSelect('#app', {
-  initDepth: 1,
-  type: 'data'
-});
-
-let edamSelect3 = new EdamSelect('#app', {
-  initDepth: 1,
-  type: 'data'
-});
-
-let edamSelect4 = new EdamSelect('#app', {
-  initDepth: 1,
-  type: 'data'
-});
-
-let edamSelect5 = new EdamSelect('#app', {
   initDepth: 1,
   type: 'data'
 });

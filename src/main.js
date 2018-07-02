@@ -11,23 +11,27 @@ class Spotlight {
     this.id = id;
     this.spotlight = undefined;
   }
-  setSpotlight(tree) {
+  setSpotlight(uid) {
     if (this.spotlight) {
-      this.spotlight.el
+      document.getElementById(this.spotlight)
         .getElementsByClassName(style['label-wrapper'])[0]
         .classList.remove(style['spotlight']);
     }
-    this.spotlight = tree;
-    tree.el
+    this.spotlight = uid;
+    document.getElementById(this.spotlight)
       .getElementsByClassName(style['label-wrapper'])[0]
       .classList.add(style['spotlight']);
   }
-  getSpotlightTerm() {
-    return this.spotlight && this.spotlight.term;
+  getSpotlightId() {
+    return this.spotlight;
   }
   nextSiblingOfAncestors(currentTree) {
     let parent;
+    let root = document.getElementById('edam-' + this.id).getElementsByClassName(style['tree-menu'])[0];
     while (parent = currentTree.parentNode.parentNode) {
+      if (parent == root) {
+        return root.getElementsByClassName(style['tree-menu'])[0];
+      }
       if (parent.nextSibling) {
         return parent.nextSibling;
       } else {
@@ -35,34 +39,23 @@ class Spotlight {
       }
     }
   }
-  next() {
-    let currentTree = document.getElementById(`edam-term-${this.id}-${this.spotlight}`);
+  next(uid = this.spotlight) {
+    let currentTree = document.getElementById(uid);
     let childNodes = currentTree.getElementsByClassName(style['tree-menu']);
     let nextNode;
 
-    console.log(childNodes);
-
     if (childNodes.length > 0) {
-      console.log(1);
       nextNode = childNodes[0];
     } else if (currentTree.nextSibling) {
-      console.log(2);
       nextNode = currentTree.nextSibling;
     } else {
-      console.log(3);
       nextNode = this.nextSiblingOfAncestors(currentTree);
     }
-    // else {
-    //   let edam = document.getElementById(`edam-${this.id}`);
-    //   let firstChild = edam.getElementsByClassName(style['edam-select-menu']).firstChild;
-    //   if (firstChild) {
-    //     nextNode = currentTree.firstChild;
-    //   }
-    // }
-
-    let matches = nextNode.id.match(/\d+$/);
-    if (matches) {
-      this.setSpotlight(matches[0]);
+    // console.log(nextNode);
+    if (nextNode.style.display !== 'none') {
+      this.setSpotlight(nextNode.id);
+    } else {
+      this.next(nextNode.id);
     }
   }
 
@@ -133,9 +126,7 @@ class EdamSelect {
     this.el = this.generateEdamSelectView();
     document.querySelector(sel).appendChild(this.el);
 
-    if (this.inline) {
-      this.init();
-    }
+    this.init();
   }
 
   get status() {
@@ -198,7 +189,7 @@ class EdamSelect {
   init() {
     console.time('Tree rendering');
 
-    // if (this.status !== 'closed') {
+    if (this.status !== 'closed') {
       let idx = this.index[this.rootId];
       let term = this.model[idx];
 
@@ -218,12 +209,12 @@ class EdamSelect {
       });
 
       this.append(treeMenu);
-    // } else {
-      // let treeMenu = this.el.getElementsByClassName(style['tree-menu'])[0];
-      // if (treeMenu) {
-        // treeMenu.remove();
-      // }
-    // }
+    } else {
+      let treeMenu = this.el.getElementsByClassName(style['tree-menu'])[0];
+      if (treeMenu) {
+        treeMenu.remove();
+      }
+    }
 
     console.timeEnd('Tree rendering');
   }
@@ -231,6 +222,7 @@ class EdamSelect {
   generateEdamSelectView() {
     let edamSelectWrap = document.createElement('div');
     edamSelectWrap.className = style['edam-select-wrap'];
+    edamSelectWrap.id = 'edam-' + this.id;
 
     let edamSelectContainer = document.createElement('div');
     edamSelectContainer.className = style['edam-select-container'];
@@ -273,14 +265,13 @@ class EdamSelect {
     edamSelectArrowWrap.addEventListener('click', (e) => {
       if (this.status === 'opened' || this.status === 'filtered' || this.status === 'unfiltered') {
         edamSelectWrap.classList.remove(style['is-open']);
-        this.oldStatus = this._status;
-        this._status = 'closed';
+        this.status = 'closed';
       } else {
         edamSelectWrap.classList.add(style['is-open']);
-        this._status = this.oldStatus;
+        this.status = this.oldStatus;
       }
       input.focus();
-      // this.init();
+      this.init();
     });
 
     input.addEventListener('input', (e) => {
@@ -483,9 +474,13 @@ class TreeMenu {
   generateEdamSelectMenuItemView() {
     let treeMenu = document.createElement('li');
     treeMenu.className = style['tree-menu'];
-    // let id = 'edam-term-' + this.id + '-' + this.term[0];
 
-    // treeMenu.classList.add(id); // not id because terms could be found in several places
+    let id = 'edam-term-' + this.id + '-' + this.term[0] + '-' + this.depth;
+
+    treeMenu.id = id;
+    // not id because terms could be found in several places
+    // okay, now it IS id, because we used depth trick to make it unique!
+
 
     let children = this.getChildren();
 
@@ -493,7 +488,7 @@ class TreeMenu {
       let labelWrapper = document.createElement('div');
       labelWrapper.className = style['label-wrapper'];
 
-      if (this.spotlight.getSpotlightTerm() === this.term) {
+      if (this.spotlight.getSpotlightId() === id) {
         labelWrapper.classList.add(style['spotlight']);
       }
 
@@ -594,7 +589,7 @@ class TreeMenu {
 
       labelWrapper.addEventListener('mouseover', () => {
         // labelWrapper.classList.add(style['spotlight']);
-        this.spotlight.setSpotlight(this);
+        this.spotlight.setSpotlight(id);
       });
 
       // console.log('edam:' + this.id + ':spotlight');
@@ -694,6 +689,8 @@ class TreeMenu {
       treeMenu.style.display = 'none';
     }
 
+    this.treeNodes[id] = this;
+
     // this.triggerInit();
     return treeMenu;
   }
@@ -724,7 +721,6 @@ class TreeMenu {
       case "unfiltered":
         return true;
       default:
-        // return true;
         throw new Error("Huh, unknown status, how could this happen?");
     }
   }
@@ -750,7 +746,6 @@ class TreeMenu {
           return this.term['disclosed'];
         }
       default:
-        // return true;
         throw new Error(`Huh, unknown status [${this.status}], how could this happen?`);
     }
   }
@@ -800,11 +795,9 @@ class TreeMenu {
 }
 
 console.time('Application');
-
-let edamSelect = new EdamSelect('#app', {
-  initDepth: 1,
-  type: 'data',
-  inline: true,
-});
-
+  let edamSelect = new EdamSelect('#app', {
+    initDepth: 1,
+    type: 'data',
+    inline: true,
+  });
 console.timeEnd('Application');

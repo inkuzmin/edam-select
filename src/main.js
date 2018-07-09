@@ -6,6 +6,13 @@ import './polyfills.js';
 
 import Fuse from "fuse.js";
 
+const IRI         = 0;
+const LABEL       = 1;
+const SYNONYMS    = 2;
+const DEFINITIONS = 3;
+const CHILDREN    = 4;
+const PARENTS     = 5;
+
 class Spotlight {
   constructor(id) {
     this.id = id;
@@ -338,9 +345,9 @@ class EdamSelect {
     let idx = this.index[nodeId];
     let term = this.model[idx];
 
-    let i, l = term[5].length; // 5 is parents field
+    let i, l = term[PARENTS].length; // 5 is parents field
     for (i = 0; i < l; i += 1) {
-      ancestors.push(term[5][i]);
+      ancestors.push(term[PARENTS][i]);
     }
 
     for (i = 0; i < ancestors.length; i += 1) {
@@ -348,9 +355,9 @@ class EdamSelect {
       term = this.model[idx];
 
       if (idx) {
-        let j, l = term[5].length;
+        let j, l = term[PARENTS].length;
         for (j = 0; j < l; j += 1) {
-          ancestors.push(term[5][j]);
+          ancestors.push(term[PARENTS][j]);
         }
       }
     }
@@ -459,7 +466,7 @@ class TreeMenu {
 
   triggerChangeEvent() {
     let event = new CustomEvent('edam:' + this.id + ':change', {
-      detail: this.term[0]
+      detail: this.term[IRI]
     });
     document.dispatchEvent(event);
   }
@@ -475,7 +482,7 @@ class TreeMenu {
     let treeMenu = document.createElement('li');
     treeMenu.className = style['tree-menu'];
 
-    let id = 'edam-term-' + this.id + '-' + this.term[0] + '-' + this.depth;
+    let id = 'edam-term-' + this.id + '-' + this.term[IRI] + '-' + this.depth;
 
     treeMenu.id = id;
     // not id because terms could be found in several places
@@ -516,7 +523,7 @@ class TreeMenu {
 
       triangleWrap.appendChild(triangle);
 
-      let text = document.createTextNode(this.term[1]);
+      let text = document.createTextNode(this.term[LABEL]);
       term.appendChild(text);
 
       // to save operations on access to elements we can add handlers right here?
@@ -528,7 +535,7 @@ class TreeMenu {
           details = document.createElement('div');
           details.className = style['details'];
 
-          let i, l = this.term[3].length;
+          let i, l = this.term[DEFINITIONS].length;
           if (l > 0) {
             let definitionsTitle = document.createElement('div');
             definitionsTitle.className = style['title'];
@@ -538,7 +545,7 @@ class TreeMenu {
             definitionsWrap.className = style['definitions'];
             for (i = 0; i < l; i += 1) {
               let definitionmItem =  document.createElement('div');
-              let definitionText = document.createTextNode(this.term[3][i]);
+              let definitionText = document.createTextNode(this.term[DEFINITIONS][i]);
               definitionmItem.appendChild(definitionText);
               definitionsWrap.appendChild(definitionmItem);
             }
@@ -547,7 +554,7 @@ class TreeMenu {
           }
 
 
-          l = this.term[2].length;
+          l = this.term[SYNONYMS].length;
           if (l > 0) {
             let synonymsWrap = document.createElement('ul');
             let synonymsTitle = document.createElement('div');
@@ -556,7 +563,7 @@ class TreeMenu {
             synonymsTitle.appendChild(synonymsTitleText);
             for (i = 0; i < l; i += 1) {
               let synonymItem =  document.createElement('li');
-              let synonymText = document.createTextNode(this.term[2][i]);
+              let synonymText = document.createTextNode(this.term[SYNONYMS][i]);
               synonymItem.appendChild(synonymText);
               synonymsWrap.appendChild(synonymItem);
             }
@@ -569,7 +576,7 @@ class TreeMenu {
           let linkTitleText = document.createTextNode("URL:");
           linkTitle.appendChild(linkTitleText);
           let link = document.createElement('a');
-          let url = `http://edamontology.org/${this.type}_${this.term[0]}`;
+          let url = `http://edamontology.org/${this.type}_${this.term[IRI]}`;
           let linkText = document.createTextNode(url);
           link.appendChild(linkText);
           link.href = url;
@@ -697,9 +704,9 @@ class TreeMenu {
 
   getChildren() {
       return this.term[4].map(id => this.edam.getById(id)).sort((a, b) => {
-        if (a[1] > b[1]) { // ah yes, need to sort it...
+        if (a[LABEL] > b[LABEL]) { // ah yes, need to sort it...
           return 1;
-        } else if (a[1] < b[1]) {
+        } else if (a[LABEL] < b[LABEL]) {
           return -1;
         } else {
           return 0;
@@ -758,9 +765,9 @@ class TreeMenu {
     } else {
       this.term['disclosed'] = true;
 
-      let i, l = this.term[4].length; // children
+      let i, l = this.term[CHILDREN].length; // children
       for (i = 0; i < l; i += 1) {
-        this.edam.model[this.edam.index()[this.term[4][i]]]['shown'] = true;
+        this.edam.model[this.edam.index()[this.term[CHILDREN][i]]]['shown'] = true;
       }
     }
 
@@ -782,11 +789,11 @@ class TreeMenu {
   }
 
   isInDisclosureResults() {
-    return this.disclosureResults.indexOf(this.term[0]) !== -1;
+    return this.disclosureResults.indexOf(this.term[IRI]) !== -1;
   }
 
   whereInSearchResults() {
-     return this.searchResults.indexOf(this.term[0]);
+     return this.searchResults.indexOf(this.term[IRI]);
   }
 
   remove() {

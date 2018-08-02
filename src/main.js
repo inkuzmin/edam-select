@@ -1,17 +1,24 @@
 import style from './styles.scss';
 
-import EDAM from './edam.js';
+import EDAM from './edam.2.js';
 
 import './polyfills.js';
 
 import Fuse from "fuse.js";
 
-const IRI         = 0;
-const LABEL       = 1;
-const SYNONYMS    = 2;
-const DEFINITIONS = 3;
-const CHILDREN    = 4;
-const PARENTS     = 5;
+// struct fields
+const REL_PID = 0;
+const TERM_FID = 1;
+const CHILDREN = 2;
+const PARENT = 3;
+
+// term fields
+const TERM_PID     = 0;
+const IRI         = 1;
+const LABEL       = 2;
+const SYNONYMS    = 3;
+const DEFINITIONS = 4;
+const REL_FID      = 5;
 
 class Spotlight {
   constructor(id) {
@@ -91,10 +98,15 @@ class EdamSelect {
     this.spotlight = new Spotlight(this.id);
     window.spotlight = this.spotlight;
 
-    this.model = this.edam.model;
-    this.rootId = this.edam.getRoot();
+    this.data = this.edam.data;
+    this.structure = this.edam.structure;
 
-    this.index = this.edam.index(); // singleton for returning indexes
+    // this.rootId = this.edam.getRoot();
+    this.root = this.edam.getRoot();
+
+    // this.index = this.edam.index(); // singleton for returning indexes
+    this.dataIndex = this.edam.dataIndex();
+    this.structureIndex = this.edam.structureIndex();
 
     // underscore for such accessors (see below)
     this.inline = params.inline;
@@ -106,7 +118,7 @@ class EdamSelect {
     this.oldStatus = undefined;
 
     console.time('Fuse init');
-    this.fuse = new Fuse(this.model, {
+    this.fuse = new Fuse(this.data, {
       keys: ['1', '2', '3'],
       shouldSort: true,
       includeMatches: true,
@@ -186,10 +198,10 @@ class EdamSelect {
   resetChanges() {
     let i, l = this.changed.length;
     for (i = 0; i < l; i += 1) {
-      let nodeId = this.changed.pop();
-      let term = this.model[this.index[nodeId]];
-      term['disclosed'] = undefined;
-      term['shown'] = undefined;
+      let relId = this.changed.pop();
+      let rel = this.structure[this.structureIndex[relId]];
+      rel['disclosed'] = undefined;
+      rel['shown'] = undefined;
     }
   }
 
@@ -197,10 +209,8 @@ class EdamSelect {
     console.time('Tree rendering');
 
     if (this.status !== 'closed') {
-      let idx = this.index[this.rootId];
-      let term = this.model[idx];
 
-      let treeMenu = new TreeMenu(term, {
+      let treeMenu = new TreeMenu(this.root, {
         initDepth: this.initDepth,
         depth: 0,
         type: this.type,
@@ -324,6 +334,9 @@ class EdamSelect {
 
       this.disclosureResults = [ ...new Set(this.disclosureResults) ];
 
+      console.log(this.searchResults);
+      console.log(this.disclosureResults);
+
       let event = new Event('edam:' + this.id + ':status');
       document.dispatchEvent(event);
 
@@ -339,30 +352,19 @@ class EdamSelect {
     }
   }
 
-  addAncestors(nodeId) {
+  addAncestors(rel_id) {
     let ancestors = [];
 
-    let idx = this.index[nodeId];
-    let term = this.model[idx];
+    let idx = this.structureIndex[rel_id];
+    let rel = this.structure[idx];
 
-    let i, l = term[PARENTS].length; // 5 is parents field
-    for (i = 0; i < l; i += 1) {
-      ancestors.push(term[PARENTS][i]);
+
+    while (rel[PARENT] !== null) {
+      ancestors.push(rel[PARENT]);
+
+      idx = this.structureIndex[rel[PARENT]];
+      rel = this.structure[idx];
     }
-
-    for (i = 0; i < ancestors.length; i += 1) {
-      idx = this.index[ancestors[i]];
-      term = this.model[idx];
-
-      if (idx) {
-        let j, l = term[PARENTS].length;
-        for (j = 0; j < l; j += 1) {
-          ancestors.push(term[PARENTS][j]);
-        }
-      }
-    }
-
-
 
     return ancestors;
   }
@@ -381,8 +383,7 @@ class EdamSelect {
 EdamSelect.id = 0;
 
 class TreeMenu {
-  constructor(term, params) {
-    this.term = term;
+  constructor(struct, params) {
 
     this.initDepth = params.initDepth;
     this.depth = params.depth;
@@ -396,72 +397,13 @@ class TreeMenu {
     this.spotlight = params.spotlight;
     this.treeNodes = params.treeNodes;
 
+
+    this.struct = struct;
+
+    this.term = this.edam.data[ this.edam.dataIndex()[this.struct[TERM_FID]] ];
+
     this.el = this.generateEdamSelectMenuItemView();
     return this.el;
-  }
-
-  attachAccessors(term) {
-    term.get = function(what) { // this is more elegant, but could be slower
-      let idx = this.edam.getSchema().indexOf(what);
-      if (idx === -1) {
-        throw new Error(`No ${what} field in term`);
-      } else {
-        return this[idx];
-      }
-    };
-    term.set = function(what, forTheReal) { // this is more elegant, but could be slower
-      let idx = this.edam.getSchema().indexOf(what);
-      if (idx === -1) {
-        throw new Error(`No ${what} field in term`);
-      } else {
-        this[idx] = forTheReal;
-      }
-    };
-    /*
-    term.get = function (what) {
-      switch (what) {
-        case 'id':
-          return this[0];
-        case 'label':
-          return this[1];
-        case 'synonyms':
-          return term[2];
-        case 'descriptions':
-          return term[3];
-        case 'children':
-          return term[4];
-        case 'parents':
-          return term[5];
-        default:
-          throw new Error(`No ${what} field in term`);
-      }
-    };
-
-    term.set = function (what, noReallyWhat) {
-      switch (what) {
-        case 'id':
-          this[0] = noReallyWhat;
-          break;
-        case 'label':
-          this[1] = noReallyWhat;
-          break;
-        case 'synonyms':
-          this[2] = noReallyWhat;
-          break;
-        case 'descriptions':
-          this[3] = noReallyWhat;
-          break;
-        case 'children':
-          this[4] = noReallyWhat;
-          break;
-        case 'parents':
-          this[5] = noReallyWhat;
-          break;
-        default:
-          throw new Error(`No ${what} field in term`);
-      }
-    };
-    */
   }
 
   triggerChangeEvent() {
@@ -673,8 +615,8 @@ class TreeMenu {
     treeMenu.appendChild(ul);
 
     if (this.isDisclosed()) {
-      children.forEach((term) => {
-        ul.appendChild(new TreeMenu(term, {
+      children.forEach((rel) => {
+        ul.appendChild(new TreeMenu(rel, {
           initDepth: this.initDepth,
           depth: this.depth + 1,
           type: this.type,
@@ -703,16 +645,17 @@ class TreeMenu {
   }
 
   getChildren() {
-      return this.term[4].map(id => this.edam.getById(id)).sort((a, b) => {
-        if (a[LABEL] > b[LABEL]) { // ah yes, need to sort it...
+      return this.struct[CHILDREN].map(id => this.edam.getById(id)).sort((a, b) => {
+        let ta = this.edam.termByRel(a);
+        let tb = this.edam.termByRel(b);
+        if (ta[LABEL] > tb[LABEL]) { // ah yes, need to sort it...
           return 1;
-        } else if (a[LABEL] < b[LABEL]) {
+        } else if (ta[LABEL] < tb[LABEL]) {
           return -1;
         } else {
           return 0;
         }
       });
-    // term[4] is children field
   }
 
   isShown() {
@@ -720,10 +663,10 @@ class TreeMenu {
       case "opened":
         return true;
       case "filtered":
-        if (this.term['shown'] === undefined) {
+        if (this.struct['shown'] === undefined) {
           return this.isInDisclosureResults() || (this.whereInSearchResults() > -1);
         } else {
-          return this.term['shown'];
+          return this.struct['shown'];
         }
       case "unfiltered":
         return true;
@@ -735,22 +678,22 @@ class TreeMenu {
   isDisclosed() {
     switch (this.status) {
       case "opened":
-        if (this.term['disclosed'] === undefined) {
+        if (this.struct['disclosed'] === undefined) {
           return this.depth < this.initDepth;
         } else {
-          return this.term['disclosed'];
+          return this.struct['disclosed'];
         }
       case "filtered":
-        if (this.term['disclosed'] === undefined) {
+        if (this.struct['disclosed'] === undefined) {
           return this.isInDisclosureResults();
         } else {
-          return this.term['disclosed'];
+          return this.struct['disclosed'];
         }
       case "unfiltered":
-        if (this.term['disclosed'] === undefined) {
+        if (this.struct['disclosed'] === undefined) {
           return this.isInDisclosureResults();
         } else {
-          return this.term['disclosed'];
+          return this.struct['disclosed'];
         }
       default:
         throw new Error(`Huh, unknown status [${this.status}], how could this happen?`);
@@ -761,17 +704,17 @@ class TreeMenu {
     console.time('Disclose');
 
     if (this.isDisclosed()) {
-      this.term['disclosed'] = false;
+      this.struct['disclosed'] = false;
     } else {
-      this.term['disclosed'] = true;
+      this.struct['disclosed'] = true;
 
-      let i, l = this.term[CHILDREN].length; // children
+      let i, l = this.struct[CHILDREN].length; // children
       for (i = 0; i < l; i += 1) {
-        this.edam.model[this.edam.index()[this.term[CHILDREN][i]]]['shown'] = true;
+        this.edam.structure[this.edam.structureIndex()[this.struct[CHILDREN][i]]]['shown'] = true;
       }
     }
 
-    this.el.parentNode.replaceChild(new TreeMenu(this.term, {
+    this.el.parentNode.replaceChild(new TreeMenu(this.struct, {
       initDepth: this.initDepth,
       depth: this.depth,
       type: this.type,
@@ -789,11 +732,11 @@ class TreeMenu {
   }
 
   isInDisclosureResults() {
-    return this.disclosureResults.indexOf(this.term[IRI]) !== -1;
+    return this.disclosureResults.indexOf(this.struct[REL_PID]) !== -1;
   }
 
   whereInSearchResults() {
-     return this.searchResults.indexOf(this.term[IRI]);
+     return this.searchResults.indexOf(this.struct[REL_PID]);
   }
 
   remove() {

@@ -95,6 +95,8 @@ class EdamSelect {
 
     this.edam = new EDAM(this.type);
 
+    this.focused = true;
+
     this.spotlight = new Spotlight(this.id);
     window.spotlight = this.spotlight;
 
@@ -119,7 +121,7 @@ class EdamSelect {
 
     console.time('Fuse init');
     this.fuse = new Fuse(this.data, {
-      keys: ['1', '2', '3'],
+      keys: ['2', '3', '4'],
       shouldSort: true,
       includeMatches: true,
       threshold: 0.2,
@@ -217,8 +219,8 @@ class EdamSelect {
         status: this.status,
         edam: this.edam,
         id: this.id,
-        searchResults: this.searchResults,
-        disclosureResults: this.disclosureResults,
+        searchResults: this.searchResults, // NB! Stores term_ids
+        disclosureResults: this.disclosureResults, // Stores rel_ids!
         fuseResults: this.fuseResults,
         spotlight: this.spotlight,
         treeNodes: this.treeNodes,
@@ -303,6 +305,13 @@ class EdamSelect {
       this.updateStatus();
     });
 
+    document.addEventListener('keydown', (e) => {
+      if (e.keyCode === 40) {
+        e.preventDefault();
+        this.spotlight.next();
+      }
+    });
+
     // document.addEventListener(`edam:${this.id}:init`, (e) => {
     //   this.treeNodes[`term-${this.id}-${e.detail.term[0]}`] = e.detail;
     // });
@@ -328,12 +337,15 @@ class EdamSelect {
       this.fuseResults = this.fuse.search(e.target.value);
 
       this.fuseResults.forEach((result) => {
-        this.searchResults.push(result.item[0]);
-        this.disclosureResults.push(...this.addAncestors(result.item[0]));
+
+        this.searchResults.push(result.item[TERM_PID]);
+        this.disclosureResults.push(...this.addAncestors(result.item[REL_FID]));
       });
 
+      // this.searchResults = [ ...new Set(this.searchResults) ];
       this.disclosureResults = [ ...new Set(this.disclosureResults) ];
 
+      console.log(this.fuseResults);
       console.log(this.searchResults);
       console.log(this.disclosureResults);
 
@@ -352,18 +364,23 @@ class EdamSelect {
     }
   }
 
-  addAncestors(rel_id) {
+  addAncestors(foundRels) {
     let ancestors = [];
 
-    let idx = this.structureIndex[rel_id];
-    let rel = this.structure[idx];
+    let i, l = foundRels.length;
+    for (i = 0; i < l; i += 1) {
+
+      let idx = this.structureIndex[foundRels[i]];
+      let rel = this.structure[idx];
 
 
-    while (rel[PARENT] !== null) {
-      ancestors.push(rel[PARENT]);
+      while (rel[PARENT] !== null) {
+        ancestors.push(rel[PARENT]);
 
-      idx = this.structureIndex[rel[PARENT]];
-      rel = this.structure[idx];
+        idx = this.structureIndex[rel[PARENT]];
+        rel = this.structure[idx];
+      }
+
     }
 
     return ancestors;
@@ -408,7 +425,7 @@ class TreeMenu {
 
   triggerChangeEvent() {
     let event = new CustomEvent('edam:' + this.id + ':change', {
-      detail: this.term[IRI]
+      detail: this.struct[REL_PID]
     });
     document.dispatchEvent(event);
   }
@@ -424,7 +441,7 @@ class TreeMenu {
     let treeMenu = document.createElement('li');
     treeMenu.className = style['tree-menu'];
 
-    let id = 'edam-term-' + this.id + '-' + this.term[IRI] + '-' + this.depth;
+    let id = 'edam-term-' + this.id + '-' + this.struct[REL_PID] + '-' + this.depth;
 
     treeMenu.id = id;
     // not id because terms could be found in several places
@@ -567,39 +584,49 @@ class TreeMenu {
         let j, ll, start, end, innerHTML;
         let found = false;
         for (i = 0; i < l; i += 1) {
-          if (this.fuseResults[whereInSearchResults].matches[i].key === "1") {
+          // console.log(this.struct[REL_PID], i);
+
+          if (this.fuseResults[whereInSearchResults].matches[i].key === "2") {
             ll = this.fuseResults[whereInSearchResults].matches[i].indices.length;
             for (j = 0; j < ll; j += 1) {
+
+              // console.log(j);
+
               start = this.fuseResults[whereInSearchResults].matches[i].indices[j][0];
               end = this.fuseResults[whereInSearchResults].matches[i].indices[j][1];
 
               if (end - start > 0) {
-                innerHTML = this.term[1].substring(0, start) +
-                  "<strong>" + this.term[1].substring(start, end + 1) + "</strong>" +
-                  this.term[1].substring(end + 1, this.term[1].length);
+                innerHTML = this.term[LABEL].substring(0, start) +
+                  "<strong>" + this.term[LABEL].substring(start, end + 1) + "</strong>" +
+                  this.term[LABEL].substring(end + 1, this.term[LABEL].length);
+
+                console.log(innerHTML);
 
                 term.innerHTML = innerHTML;
                 found = true;
               }
             }
-          } else if (this.fuseResults[whereInSearchResults].matches[i].key === "2" && !found) {
-            let span = document.createElement("span");
-            span.className = style["by"];
-            let spanText = document.createTextNode("(by synonyms)");
-            span.appendChild(spanText);
-            term.appendChild(span);
           } else if (this.fuseResults[whereInSearchResults].matches[i].key === "3" && !found) {
+            let bySynonyms = term.getElementsByClassName(style["by"]);
+            if (bySynonyms.length === 0) {
+              let span = document.createElement("span");
+              span.className = style["by"];
+              let spanText = document.createTextNode("(by synonyms)");
+              span.appendChild(spanText);
+              term.appendChild(span);
+            }
+          } else if (this.fuseResults[whereInSearchResults].matches[i].key === "4" && !found) {
             let bySynonyms = term.getElementsByClassName(style["by"]);
             if (bySynonyms.length > 0) {
               let span = document.createElement("span");
               span.className = style["by"];
-              let spanText = document.createTextNode("(by synonyms and definition)");
+              let spanText = document.createTextNode("(by synonyms and definitions)");
               span.appendChild(spanText);
               term.replaceChild(span, bySynonyms[0]);
             } else {
               let span = document.createElement("span");
               span.className = style["by"];
-              let spanText = document.createTextNode("(by definition)");
+              let spanText = document.createTextNode("(by definitions)");
               span.appendChild(spanText);
               term.appendChild(span);
             }
@@ -736,7 +763,7 @@ class TreeMenu {
   }
 
   whereInSearchResults() {
-     return this.searchResults.indexOf(this.struct[REL_PID]);
+     return this.searchResults.indexOf(this.struct[TERM_FID]);
   }
 
   remove() {

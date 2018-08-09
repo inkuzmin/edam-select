@@ -111,6 +111,7 @@ class Spotlight {
 
 class Tag {
   constructor(tree) {
+    this.edamId = tree.id;
     this.value = tree.term[LABEL];
   }
 
@@ -131,6 +132,13 @@ class Tag {
 
     tagWrap.appendChild(tagRemoveIcon);
     tagWrap.appendChild(tagValue);
+
+    tagRemoveIcon.addEventListener('click', () => {
+      let event = new CustomEvent('edam:' + this.edamId + ':unselect', {
+        detail: this,
+      });
+      document.dispatchEvent(event);
+    });
 
     return tagWrap;
   }
@@ -204,6 +212,8 @@ class EdamSelect {
     // it could be refactored to Change object
     this.changed = [];
     this.treeNodes = {};
+
+    this.selected = [];
 
     this.el = this.generateEdamSelectView();
     document.querySelector(sel).appendChild(this.el);
@@ -341,6 +351,13 @@ class EdamSelect {
 
     edamSelectMenuWrap.appendChild(edamSelectMenu);
 
+
+    let divForMeasures = document.createElement("div");
+    divForMeasures.className = style['div-for-measures'];
+
+    edamSelectWrap.appendChild(divForMeasures);
+
+
     if (this.status === 'opened' || this.status === 'filtered' || this.status === 'unfiltered') {
       edamSelectWrap.classList.add(style['is-open']);
     }
@@ -359,6 +376,9 @@ class EdamSelect {
     });
 
     input.addEventListener('input', (e) => {
+      divForMeasures.innerText = e.target.value;
+      input.style.width = (divForMeasures.clientWidth + 5) + 'px';
+
       this.search(e);
     });
 
@@ -370,12 +390,32 @@ class EdamSelect {
       this.updateStatus();
     });
 
-    document.addEventListener(`edam:${this.id}:select`, (e) => {
-      console.log(e.detail);
 
-      let tagNode = new Tag(e.detail).render();
-      edamTagsWrap.appendChild(tagNode);
+    let renderTags = () => {
+      while (edamTagsWrap.firstChild) {
+        edamTagsWrap.removeChild(edamTagsWrap.firstChild);
+      }
+
+      this.selected.forEach((t) => {
+        edamTagsWrap.appendChild(t.render());
+      });
+    }
+
+    document.addEventListener(`edam:${this.id}:select`, (e) => {
+      this.selected.push(new Tag(e.detail));
+      renderTags()
     });
+
+    document.addEventListener(`edam:${this.id}:unselect`, (e) => {
+      this.selected = this.selected.filter((t) => {
+        console.log(t);
+        console.log(e.detail);
+        console.log(t !== e.detail);
+        return t !== e.detail;
+      });
+      renderTags()
+    });
+
 
     document.addEventListener('keydown', (e) => {
       if (e.keyCode === 40) {

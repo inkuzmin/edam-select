@@ -3,6 +3,7 @@ body {
   margin: 0 auto;
   padding: 50px;
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  //font-size: 14px;
 }
 
 /* Mixins */
@@ -50,6 +51,14 @@ body {
 
 /* Styles */
 
+:local(.div-for-measures) {
+  width: auto;
+  display: inline-block;
+  //visibility: hidden;
+  position: fixed;
+  overflow:auto;
+}
+
 :local(.tag) {
   background-color: #ebf5ff;
   background-color: rgba(0,126,255,.08);
@@ -58,11 +67,11 @@ body {
   border: 1px solid rgba(0,126,255,.24);
   color: #007eff;
   display: inline-block;
-  font-size: .9em;
-  line-height: 1.4;
   margin-left: 5px;
   margin-top: 5px;
   vertical-align: top;
+  font-size: 0.9em;
+  line-height: 1.4;
 
   :local(.tag-remove) {
     cursor: pointer;
@@ -94,6 +103,7 @@ body {
 :local(.edam-select-wrap) {
   position: relative;
   width: 100%;
+  font-size: 1em;
 
   ul, li {
     margin: 0;
@@ -120,7 +130,7 @@ body {
     border-radius: 2px;
     background-color: rgba(0, 126, 255, 0.08);
     display: inline-block;
-    font-size: 0.9em;
+    font-size: 0.8em;
     line-height: 1.4;
     margin-left: 5px;
     margin-top: 5px;
@@ -232,7 +242,7 @@ body {
     }
 
     :local(.edam-select-input-wrap) {
-      display: block;
+      display: inline-block;
       margin-left: 0.5em;
       margin-right: 0.5em;
       padding: 0;
@@ -247,7 +257,7 @@ body {
         line-height: 1;
         padding: 0;
         padding-top: 0.5em;
-        width: 100%;
+        width: 50px;
 
         @include placeholder {
           color: #999;

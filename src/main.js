@@ -39,6 +39,41 @@ class Spotlight {
   getSpotlightId() {
     return this.spotlight;
   }
+
+  prevSiblingOfAncestors(currentTree) {
+    let parent;
+    let root = document.getElementById('edam-' + this.id).getElementsByClassName(style['tree-menu'])[0];
+    while (parent = currentTree.parentNode.parentNode) {
+      if (parent == root) {
+        let treeCollection = root.getElementsByClassName(style['tree-menu']);
+        return treeCollection[treeCollection.length - 1];
+      }
+      if (parent) {
+        return parent;
+      } else {
+        currentTree = parent;
+      }
+    }
+  }
+  prev(uid = this.spotlight) {
+    let currentTree = document.getElementById(uid);
+    let prevNode;
+    if (currentTree.previousSibling) {
+      prevNode = currentTree.previousSibling;
+      let childNodes = prevNode.getElementsByClassName(style['tree-menu']);
+      if (childNodes.length > 0) {
+        prevNode = childNodes[childNodes.length - 1];
+      }
+    } else {
+      prevNode = this.prevSiblingOfAncestors(currentTree);
+    }
+    if (prevNode.style.display !== 'none') {
+      this.setSpotlight(prevNode.id);
+    } else {
+      this.prev(prevNode.id);
+    }
+  }
+
   nextSiblingOfAncestors(currentTree) {
     let parent;
     let root = document.getElementById('edam-' + this.id).getElementsByClassName(style['tree-menu'])[0];
@@ -65,7 +100,6 @@ class Spotlight {
     } else {
       nextNode = this.nextSiblingOfAncestors(currentTree);
     }
-    // console.log(nextNode);
     if (nextNode.style.display !== 'none') {
       this.setSpotlight(nextNode.id);
     } else {
@@ -73,6 +107,33 @@ class Spotlight {
     }
   }
 
+}
+
+class Tag {
+  constructor(tree) {
+    this.value = tree.term[LABEL];
+  }
+
+  render() {
+    let tagWrap = document.createElement('div');
+    tagWrap.className = style['tag'];
+
+    let tagRemoveIcon = document.createElement('span');
+    tagRemoveIcon.className = style['tag-remove'];
+
+    tagRemoveIcon.appendChild(document.createTextNode("×"));
+
+    let tagValue = document.createElement('span');
+    tagValue.className = style['tag-value'];
+
+    let value = document.createTextNode(this.value);
+    tagValue.appendChild(value);
+
+    tagWrap.appendChild(tagRemoveIcon);
+    tagWrap.appendChild(tagValue);
+
+    return tagWrap;
+  }
 }
 
 class EdamSelect {
@@ -249,6 +310,8 @@ class EdamSelect {
     let edamSelectInputWrap = document.createElement('div');
     edamSelectInputWrap.className = style['edam-select-input-wrap'];
 
+    let edamTagsWrap = document.createElement('span');
+
     let input = document.createElement('input');
     input.type = 'text';
 
@@ -268,6 +331,8 @@ class EdamSelect {
 
     edamSelectWrap.appendChild(edamSelectContainer);
     edamSelectWrap.appendChild(edamSelectMenuWrap);
+
+    edamSelectContainer.appendChild(edamTagsWrap);
 
     edamSelectContainer.appendChild(edamSelectInputWrap);
     edamSelectInputWrap.appendChild(input);
@@ -305,12 +370,33 @@ class EdamSelect {
       this.updateStatus();
     });
 
+    document.addEventListener(`edam:${this.id}:select`, (e) => {
+      console.log(e.detail);
+
+      let tagNode = new Tag(e.detail).render();
+      edamTagsWrap.appendChild(tagNode);
+    });
+
     document.addEventListener('keydown', (e) => {
       if (e.keyCode === 40) {
         e.preventDefault();
         this.spotlight.next();
+      } else if (e.keyCode === 38) {
+        e.preventDefault();
+        this.spotlight.prev();
+      } else if (e.keyCode === 39) {
+        e.preventDefault();
+        if (!this.treeNodes[this.spotlight.spotlight].isDisclosed()) {
+          this.treeNodes[this.spotlight.spotlight].disclose();
+        }
+      } else if (e.keyCode === 37) { // left 37
+        e.preventDefault();
+        if (this.treeNodes[this.spotlight.spotlight].isDisclosed()) {
+          this.treeNodes[this.spotlight.spotlight].disclose();
+        }
       }
     });
+
 
     // document.addEventListener(`edam:${this.id}:init`, (e) => {
     //   this.treeNodes[`term-${this.id}-${e.detail.term[0]}`] = e.detail;
@@ -437,11 +523,18 @@ class TreeMenu {
     document.dispatchEvent(event);
   }
 
+  triggerSelect() {
+    let event = new CustomEvent('edam:' + this.id + ':select', {
+      detail: this,
+    });
+    document.dispatchEvent(event);
+  }
+
   generateEdamSelectMenuItemView() {
     let treeMenu = document.createElement('li');
     treeMenu.className = style['tree-menu'];
 
-    let id = 'edam-term-' + this.id + '-' + this.struct[REL_PID] + '-' + this.depth;
+    let id = 'edam-term-' + this.id + '-' + this.struct[REL_PID];
 
     treeMenu.id = id;
     // not id because terms could be found in several places
@@ -556,6 +649,11 @@ class TreeMenu {
       labelWrapper.addEventListener('mouseover', () => {
         // labelWrapper.classList.add(style['spotlight']);
         this.spotlight.setSpotlight(id);
+      });
+
+      labelWrapper.addEventListener('click', () => {
+        // labelWrapper.classList.add(style['spotlight']);
+        this.select();
       });
 
       // console.log('edam:' + this.id + ':spotlight');
@@ -725,6 +823,10 @@ class TreeMenu {
       default:
         throw new Error(`Huh, unknown status [${this.status}], how could this happen?`);
     }
+  }
+
+  select() {
+    this.triggerSelect();
   }
 
   disclose() {

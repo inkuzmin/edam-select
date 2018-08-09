@@ -50,6 +50,47 @@ body {
 
 /* Styles */
 
+:local(.tag) {
+  background-color: #ebf5ff;
+  background-color: rgba(0,126,255,.08);
+  border-radius: 2px;
+  border: 1px solid #c2e0ff;
+  border: 1px solid rgba(0,126,255,.24);
+  color: #007eff;
+  display: inline-block;
+  font-size: .9em;
+  line-height: 1.4;
+  margin-left: 5px;
+  margin-top: 5px;
+  vertical-align: top;
+
+  :local(.tag-remove) {
+    cursor: pointer;
+    border-bottom-left-radius: 2px;
+    border-top-left-radius: 2px;
+    border-right: 1px solid #c2e0ff;
+    border-right: 1px solid rgba(0,126,255,.24);
+    padding: 1px 5px 3px;
+    display: inline-block;
+    vertical-align: middle;
+
+    &:hover {
+      background-color: #d8eafd;
+      background-color: rgba(0,113,230,.08);
+      color: #0071e6;
+    }
+  }
+
+  :local(.tag-value) {
+    border-bottom-right-radius: 2px;
+    border-top-right-radius: 2px;
+    cursor: default;
+    padding: 2px 5px;
+    display: inline-block;
+    vertical-align: middle;
+  }
+}
+
 :local(.edam-select-wrap) {
   position: relative;
   width: 100%;

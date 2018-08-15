@@ -16,13 +16,17 @@ let structure_indexes = {
 
 class EDAM {
   constructor(type) {
+    console.time('EDAM init');
     this.type = type;
 
     this.structure = this.clone(
       edam.structure[type]
     );
 
-    this.data = edam.data[type];
+    this.data = this.clone(
+      edam.data[type]
+    );
+    console.timeEnd('EDAM init');
   }
 
   clone(list) {

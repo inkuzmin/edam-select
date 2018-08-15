@@ -13,18 +13,19 @@ const CHILDREN = 2;
 const PARENT = 3;
 
 // term fields
-const TERM_PID     = 0;
-const IRI         = 1;
-const LABEL       = 2;
-const SYNONYMS    = 3;
+const TERM_PID = 0;
+const IRI = 1;
+const LABEL = 2;
+const SYNONYMS = 3;
 const DEFINITIONS = 4;
-const REL_FID      = 5;
+const REL_FID = 5;
 
 class Spotlight {
   constructor(id) {
     this.id = id;
     this.spotlight = undefined;
   }
+
   setSpotlight(uid) {
     if (this.spotlight) {
       document.getElementById(this.spotlight)
@@ -36,6 +37,7 @@ class Spotlight {
       .getElementsByClassName(style['label-wrapper'])[0]
       .classList.add(style['spotlight']);
   }
+
   getSpotlightId() {
     return this.spotlight;
   }
@@ -55,6 +57,7 @@ class Spotlight {
       }
     }
   }
+
   prev(uid = this.spotlight) {
     let currentTree = document.getElementById(uid);
     let prevNode;
@@ -88,6 +91,7 @@ class Spotlight {
       }
     }
   }
+
   next(uid = this.spotlight) {
     let currentTree = document.getElementById(uid);
     let childNodes = currentTree.getElementsByClassName(style['tree-menu']);
@@ -110,9 +114,14 @@ class Spotlight {
 }
 
 class Tag {
+
   constructor(tree) {
+    this.id = 'edam-term-' + tree.id + '-' + tree.struct[REL_PID];
     this.edamId = tree.id;
     this.value = tree.term[LABEL];
+    this.termId = tree.term[TERM_PID];
+
+    this.active = false;
   }
 
   render() {
@@ -140,6 +149,27 @@ class Tag {
       document.dispatchEvent(event);
     });
 
+    if (this.active) {
+      tagWrap.classList.add(style['tag-active']);
+    } else {
+      tagWrap.classList.remove(style['tag-active']);
+    }
+
+    tagValue.addEventListener('click', () => {
+      this.active = !this.active;
+      if (this.active) {
+        tagWrap.classList.add(style['tag-active']);
+      } else {
+        tagWrap.classList.remove(style['tag-active']);
+      }
+
+      let event = new CustomEvent('edam:' + this.edamId + ':filter', {
+        detail: this,
+      });
+      document.dispatchEvent(event);
+    });
+
+
     return tagWrap;
   }
 }
@@ -164,8 +194,6 @@ class EdamSelect {
 
     this.edam = new EDAM(this.type);
 
-    this.focused = true;
-
     this.spotlight = new Spotlight(this.id);
     window.spotlight = this.spotlight;
 
@@ -182,11 +210,16 @@ class EdamSelect {
     // underscore for such accessors (see below)
     this.inline = params.inline;
     if (this.inline) {
-      this._status = 'opened';
+      this.opened = true;
     } else {
-      this._status = 'closed';
+      this.opened = false;
     }
     this.oldStatus = undefined;
+
+    // new statuses
+    this.selected = false;
+    this.filtered = undefined;
+    this.focused = true;
 
     console.time('Fuse init');
     this.fuse = new Fuse(this.data, {
@@ -221,53 +254,6 @@ class EdamSelect {
     this.init();
   }
 
-  get status() {
-    return this._status;
-  }
-
-  set status(newStatus){ // wow so valid
-    if (['opened', 'filtered', 'filteredButNothingWasFound',
-        'unfiltered', 'closed', 'focused', 'selected'].indexOf(newStatus) === -1) {
-      // custom error messages are recognisable by the absence of explanation marks
-      throw new Error("Unknown status"); // dot is optional tho
-    } else {
-      this.oldStatus = this._status;
-      switch (this.oldStatus) {
-        case 'opened': // current
-          switch (newStatus) {
-            case 'filtered': // new
-              this.resetChanges();
-              break;
-          }
-          break;
-        case 'filtered': // current
-          switch (newStatus) {
-            case 'unfiltered':
-              break;
-          }
-          break;
-        case 'filteredButNothingFound': // current
-          break;
-        case 'unfiltered': // current
-          switch (newStatus) {
-            case "filtered":
-              this.resetChanges();
-              break;
-          }
-        case 'closed': // current
-          break;
-        case 'focused': // current
-          break;
-        case 'selected': // current
-          break;
-      }
-
-      this._status = newStatus;
-
-      this.init();
-    }
-  }
-
   resetChanges() {
     let i, l = this.changed.length;
     for (i = 0; i < l; i += 1) {
@@ -276,25 +262,53 @@ class EdamSelect {
       rel['disclosed'] = undefined;
       rel['shown'] = undefined;
     }
+    this.hideLoader();
+  }
+
+  displayNothingFound() {
+    document.getElementsByClassName(style['edam-nothing-found'])[0].style.display = 'block';
+  }
+
+  hideNothingFound() {
+    document.getElementsByClassName(style['edam-nothing-found'])[0].style.display = 'none';
+  }
+
+  setReset() {
+    if (this.el.getElementsByTagName('input')[0].value.length > 0) {
+      this.setClearStatus('text');
+    } else if (this.filtered !== undefined || this.changed.length > 0) {
+      this.setClearStatus('tags');
+    } else {
+      this.setClearStatus('none');
+    }
   }
 
   init() {
     console.time('Tree rendering');
 
-    if (this.status !== 'closed') {
+    this.setReset();
+
+    if (this.searchResults.length === 0 && this.filtered !== undefined) {
+      this.displayNothingFound();
+    } else {
+      this.hideNothingFound();
+    }
+
+    if (this.opened) {
 
       let treeMenu = new TreeMenu(this.root, {
         initDepth: this.initDepth,
         depth: 0,
         type: this.type,
-        status: this.status,
         edam: this.edam,
         id: this.id,
+        selected: this.selected,
         searchResults: this.searchResults, // NB! Stores term_ids
         disclosureResults: this.disclosureResults, // Stores rel_ids!
         fuseResults: this.fuseResults,
         spotlight: this.spotlight,
         treeNodes: this.treeNodes,
+        filtered: this.filtered,
         // changed: this.changed -- no, this is child - parent channel, it should be impl. with events...
       });
 
@@ -331,23 +345,45 @@ class EdamSelect {
     let edamSelectMenu = document.createElement('ul');
     edamSelectMenu.className = style['edam-select-menu'];
 
+    let edamSelectRemoveWrap = document.createElement('div');
+    edamSelectRemoveWrap.className = style['remove-wrap'];
+
+    let edamSelectRemove = document.createElement('div');
+    edamSelectRemove.className = style['remove'];
+
+
+    edamSelectRemove.appendChild(document.createTextNode("×"));
+    edamSelectRemoveWrap.appendChild(edamSelectRemove);
+
     let edamSelectArrowWrap = document.createElement('div');
     edamSelectArrowWrap.className = style['edam-select-arrow-wrap'];
 
     let edamSelectArrow = document.createElement('div');
     edamSelectArrow.className = style['edam-select-arrow'];
 
+    let edamSelectSpinner = document.createElement('div');
+    edamSelectSpinner.className = style['edam-select-spinner'];
+
+    let edamNothingFound = document.createElement('div');
+    edamNothingFound.className = style['edam-nothing-found'];
+    edamNothingFound.appendChild(document.createTextNode("Nothing was found!"));
+
     edamSelectArrowWrap.appendChild(edamSelectArrow);
+    edamSelectArrowWrap.appendChild(edamSelectSpinner);
 
     edamSelectWrap.appendChild(edamSelectContainer);
     edamSelectWrap.appendChild(edamSelectMenuWrap);
+    edamSelectMenuWrap.appendChild(edamNothingFound);
 
     edamSelectContainer.appendChild(edamTagsWrap);
 
     edamSelectContainer.appendChild(edamSelectInputWrap);
     edamSelectInputWrap.appendChild(input);
 
+    edamSelectContainer.appendChild(edamSelectRemoveWrap);
+
     edamSelectContainer.appendChild(edamSelectArrowWrap);
+
 
     edamSelectMenuWrap.appendChild(edamSelectMenu);
 
@@ -357,19 +393,61 @@ class EdamSelect {
 
     edamSelectWrap.appendChild(divForMeasures);
 
+    this.showLoader = () => {
+      edamSelectArrow.style.display = 'none';
+      edamSelectSpinner.style.display = 'block';
+    };
+    this.hideLoader = () => {
+      edamSelectArrow.style.display = '';
+      edamSelectSpinner.style.display = 'none';
+    };
 
-    if (this.status === 'opened' || this.status === 'filtered' || this.status === 'unfiltered') {
+    this.setClearStatus = (status) => {
+      if (status === 'none') {
+        edamSelectRemove.classList.remove(style['clear-text']);
+        edamSelectRemove.classList.remove(style['clear-tags']);
+        edamSelectRemove.style.display = 'none';
+      } else if (status === 'text') {
+        edamSelectRemove.classList.remove(style['clear-tags']);
+        edamSelectRemove.classList.add(style['clear-text']);
+        edamSelectRemove.style.display = '';
+      } else if (status === 'tags') {
+        edamSelectRemove.classList.remove(style['clear-text']);
+        edamSelectRemove.classList.add(style['clear-tags']);
+        edamSelectRemove.style.display = '';
+      }
+    };
+
+    edamSelectRemoveWrap.addEventListener('click', () => {
+      if (edamSelectRemove.classList.contains(style['clear-tags'])) {
+        this.filtered = undefined;
+        input.value = '';
+        this.resetChanges();
+        this.clearSearch();
+        this.init();
+      } else if (edamSelectRemove.classList.contains(style['clear-text'])) {
+        input.value = '';
+        this.filterLogic();
+      }
+    });
+
+
+    if (this.opened) {
       edamSelectWrap.classList.add(style['is-open']);
     }
 
+    edamSelectContainer.addEventListener('click', () => {
+      input.focus();
+    });
+
     // event handlers will be here
     edamSelectArrowWrap.addEventListener('click', (e) => {
-      if (this.status === 'opened' || this.status === 'filtered' || this.status === 'unfiltered') {
+      if (this.opened) {
         edamSelectWrap.classList.remove(style['is-open']);
-        this.status = 'closed';
+        this.opened = false;
       } else {
         edamSelectWrap.classList.add(style['is-open']);
-        this.status = this.oldStatus;
+        this.opened = true;
       }
       input.focus();
       this.init();
@@ -384,12 +462,29 @@ class EdamSelect {
 
     document.addEventListener(`edam:${this.id}:change`, (e) => {
       this.changed.push(e.detail);
+      this.setReset();
     });
 
     document.addEventListener(`edam:${this.id}:status`, (e) => {
       this.updateStatus();
     });
 
+    document.addEventListener(`edam:${this.id}:filter`, (e) => {
+      checkIfFilteringIsNeeded();
+    });
+
+    let checkIfFilteringIsNeeded = () => {
+      let termIds = this.selected.filter((tag)=>{
+        return tag.active;
+      }).map((t) => {return t.termId;});
+
+      if (termIds.length > 0) {
+        this.filter(termIds);
+      } else {
+        this.filterLogic();
+        // TODO: method to encapsulate the complex logic in
+      }
+    };
 
     let renderTags = () => {
       while (edamTagsWrap.firstChild) {
@@ -399,32 +494,34 @@ class EdamSelect {
       this.selected.forEach((t) => {
         edamTagsWrap.appendChild(t.render());
       });
-    }
+    };
 
     document.addEventListener(`edam:${this.id}:select`, (e) => {
-      this.selected.push(new Tag(e.detail));
-      renderTags()
+      let tag = new Tag(e.detail);
+
+      if (this.selected.findIndex(t => tag.termId === t.termId) === -1) {
+        this.selected.push(tag);
+        renderTags();
+      }
     });
 
     document.addEventListener(`edam:${this.id}:unselect`, (e) => {
       this.selected = this.selected.filter((t) => {
-        console.log(t);
-        console.log(e.detail);
-        console.log(t !== e.detail);
         return t !== e.detail;
       });
-      renderTags()
+      renderTags();
+      checkIfFilteringIsNeeded();
     });
 
 
     document.addEventListener('keydown', (e) => {
-      if (e.keyCode === 40) {
+      if (e.keyCode === 40) { // down
         e.preventDefault();
         this.spotlight.next();
-      } else if (e.keyCode === 38) {
+      } else if (e.keyCode === 38) { // up
         e.preventDefault();
         this.spotlight.prev();
-      } else if (e.keyCode === 39) {
+      } else if (e.keyCode === 39) { // right
         e.preventDefault();
         if (!this.treeNodes[this.spotlight.spotlight].isDisclosed()) {
           this.treeNodes[this.spotlight.spotlight].disclose();
@@ -437,22 +534,44 @@ class EdamSelect {
       }
     });
 
+    this.filterLogic = () => {
+      if (this.searchResults.length === 0) {
+        // this.resetChanges();
+        this.filtered = false;
+      } else {
+       if (input.value.length > 0) {
+          this.filtered = true;
+        } else {
+          // this.resetChanges();
+          this.filtered = false;
+        }
+      }
 
-    // document.addEventListener(`edam:${this.id}:init`, (e) => {
-    //   this.treeNodes[`term-${this.id}-${e.detail.term[0]}`] = e.detail;
-    // });
+      this.hideLoader();
+      this.init();
+    };
 
     return edamSelectWrap;
   }
 
   search(e) {
+    this.showLoader();
     if (e.target.value.length > 0) {
+      this.setClearStatus('text');
       this.searchForReal(e);
     } else {
       clearTimeout(this.timeout);
-      this.status = "unfiltered";
+      // this.clearSearch();
+      this.filterLogic();
     }
   }
+
+  clearSearch() {
+    this.searchResults = [];
+    this.disclosureResults = [];
+    this.fuseResults = [];
+  }
+
   searchForReal(e) {
     clearTimeout(this.timeout);
     this.timeout = setTimeout(() => {
@@ -468,8 +587,7 @@ class EdamSelect {
         this.disclosureResults.push(...this.addAncestors(result.item[REL_FID]));
       });
 
-      // this.searchResults = [ ...new Set(this.searchResults) ];
-      this.disclosureResults = [ ...new Set(this.disclosureResults) ];
+      this.disclosureResults = [...new Set(this.disclosureResults)];
 
       console.log(this.fuseResults);
       console.log(this.searchResults);
@@ -482,12 +600,28 @@ class EdamSelect {
     }, 500);
   }
 
-  updateStatus() {
-    if (this.searchResults.length > 0) {
-      this.status = "filtered";
-    } else {
-      this.status = "filteredButNothingWasFound";
+  filter(termIds) {
+    this.searchResults = termIds;
+    this.disclosureResults = [];
+    this.fuseResults = [];
+
+    for (let i = 0; i < termIds.length; i += 1) {
+      let rels = this.data[this.dataIndex[termIds[i]]][REL_FID];
+      this.disclosureResults.push(...this.addAncestors(rels));
     }
+
+    this.disclosureResults = [...new Set(this.disclosureResults)];
+
+    console.log(this.searchResults);
+    console.log(this.disclosureResults);
+
+    let event = new Event('edam:' + this.id + ':status');
+    document.dispatchEvent(event);
+
+  }
+
+  updateStatus() {
+    this.filterLogic();
   }
 
   addAncestors(foundRels) {
@@ -523,6 +657,7 @@ class EdamSelect {
     }
   }
 }
+
 EdamSelect.id = 0;
 
 class TreeMenu {
@@ -531,7 +666,6 @@ class TreeMenu {
     this.initDepth = params.initDepth;
     this.depth = params.depth;
     this.type = params.type;
-    this.status = params.status;
     this.edam = params.edam;
     this.id = params.id;
     this.disclosureResults = params.disclosureResults;
@@ -540,10 +674,14 @@ class TreeMenu {
     this.spotlight = params.spotlight;
     this.treeNodes = params.treeNodes;
 
+    this.filtered = params.filtered;
+
+    this.selected = params.selected;
+
 
     this.struct = struct;
 
-    this.term = this.edam.data[ this.edam.dataIndex()[this.struct[TERM_FID]] ];
+    this.term = this.edam.data[this.edam.dataIndex()[this.struct[TERM_FID]]];
 
     this.el = this.generateEdamSelectMenuItemView();
     return this.el;
@@ -618,8 +756,13 @@ class TreeMenu {
       let text = document.createTextNode(this.term[LABEL]);
       term.appendChild(text);
 
+      if (this.term['selected']) {
+        term.classList.add(style['selected']);
+      }
+
       // to save operations on access to elements we can add handlers right here?
-      info.addEventListener('click', () => {
+      info.addEventListener('click', (e) => {
+        e.stopPropagation();
         let details = labelWrapper.getElementsByClassName(style['details'])[0];
         if (details) {
           details.remove();
@@ -636,7 +779,7 @@ class TreeMenu {
             let definitionsWrap = document.createElement('div');
             definitionsWrap.className = style['definitions'];
             for (i = 0; i < l; i += 1) {
-              let definitionmItem =  document.createElement('div');
+              let definitionmItem = document.createElement('div');
               let definitionText = document.createTextNode(this.term[DEFINITIONS][i]);
               definitionmItem.appendChild(definitionText);
               definitionsWrap.appendChild(definitionmItem);
@@ -654,7 +797,7 @@ class TreeMenu {
             let synonymsTitleText = document.createTextNode("Synonyms:");
             synonymsTitle.appendChild(synonymsTitleText);
             for (i = 0; i < l; i += 1) {
-              let synonymItem =  document.createElement('li');
+              let synonymItem = document.createElement('li');
               let synonymText = document.createTextNode(this.term[SYNONYMS][i]);
               synonymItem.appendChild(synonymText);
               synonymsWrap.appendChild(synonymItem);
@@ -672,16 +815,20 @@ class TreeMenu {
           let linkText = document.createTextNode(url);
           link.appendChild(linkText);
           link.href = url;
+          link.target = '_blank';
           details.appendChild(linkTitle);
           details.appendChild(link);
 
           labelIndent.appendChild(details);
 
-          setTimeout(() => {details.classList.add(style['show']);}, 10);
+          setTimeout(() => {
+            details.classList.add(style['show']);
+          }, 10);
         }
       });
 
-      triangleWrap.addEventListener('click', () => {
+      triangleWrap.addEventListener('click', (e) => {
+        e.stopPropagation();
         this.triggerChangeEvent();
         this.disclose();
       });
@@ -691,9 +838,14 @@ class TreeMenu {
         this.spotlight.setSpotlight(id);
       });
 
-      labelWrapper.addEventListener('click', () => {
-        // labelWrapper.classList.add(style['spotlight']);
-        this.select();
+      labelWrapper.addEventListener('click', (e) => {
+        e.stopPropagation();
+
+        if (!this.term.selected) {
+          // labelWrapper.classList.add(style['spotlight']);
+          this.triggerSelect();
+        }
+
       });
 
       // console.log('edam:' + this.id + ':spotlight');
@@ -701,6 +853,20 @@ class TreeMenu {
       //   console.log(321);
       // }, true);
 
+      this.unselect = (e) => {
+        if (e.detail.termId === this.term[TERM_PID]) {
+          this._unselect();
+        }
+      };
+
+      this.select = (e) => {
+        if (e.detail.term === this.term) {
+          this._select();
+        }
+      };
+
+      document.addEventListener(`edam:${this.id}:select`, this.select);
+      document.addEventListener(`edam:${this.id}:unselect`, this.unselect);
 
       // styles go here for the same reason
       labelIndent.style.marginLeft = (this.depth - 0.5) + 'em';
@@ -714,7 +880,7 @@ class TreeMenu {
       }
 
       let whereInSearchResults = this.whereInSearchResults();
-      if (whereInSearchResults > -1) {
+      if (whereInSearchResults > -1 && this.fuseResults.length > 0) {
 
         labelIndent.classList.add(style['highlighted']);
 
@@ -722,7 +888,6 @@ class TreeMenu {
         let j, ll, start, end, innerHTML;
         let found = false;
         for (i = 0; i < l; i += 1) {
-          // console.log(this.struct[REL_PID], i);
 
           if (this.fuseResults[whereInSearchResults].matches[i].key === "2") {
             ll = this.fuseResults[whereInSearchResults].matches[i].indices.length;
@@ -738,7 +903,7 @@ class TreeMenu {
                   "<strong>" + this.term[LABEL].substring(start, end + 1) + "</strong>" +
                   this.term[LABEL].substring(end + 1, this.term[LABEL].length);
 
-                console.log(innerHTML);
+                // console.log(innerHTML);
 
                 term.innerHTML = innerHTML;
                 found = true;
@@ -785,14 +950,15 @@ class TreeMenu {
           initDepth: this.initDepth,
           depth: this.depth + 1,
           type: this.type,
-          status: this.status,
           edam: this.edam,
           id: this.id,
+          selected: this.selected,
           searchResults: this.searchResults,
           disclosureResults: this.disclosureResults,
           fuseResults: this.fuseResults,
           spotlight: this.spotlight,
           treeNodes: this.treeNodes,
+          filtered: this.filtered,
         }));
       });
     }
@@ -810,63 +976,103 @@ class TreeMenu {
   }
 
   getChildren() {
-      return this.struct[CHILDREN].map(id => this.edam.getById(id)).sort((a, b) => {
-        let ta = this.edam.termByRel(a);
-        let tb = this.edam.termByRel(b);
-        if (ta[LABEL] > tb[LABEL]) { // ah yes, need to sort it...
-          return 1;
-        } else if (ta[LABEL] < tb[LABEL]) {
-          return -1;
-        } else {
-          return 0;
-        }
-      });
+    return this.struct[CHILDREN].map(id => this.edam.getById(id)).sort((a, b) => {
+      let ta = this.edam.termByRel(a);
+      let tb = this.edam.termByRel(b);
+      if (ta[LABEL] > tb[LABEL]) { // ah yes, need to sort it...
+        return 1;
+      } else if (ta[LABEL] < tb[LABEL]) {
+        return -1;
+      } else {
+        return 0;
+      }
+    });
   }
 
   isShown() {
-    switch (this.status) {
-      case "opened":
-        return true;
-      case "filtered":
-        if (this.struct['shown'] === undefined) {
-          return this.isInDisclosureResults() || (this.whereInSearchResults() > -1);
-        } else {
-          return this.struct['shown'];
-        }
-      case "unfiltered":
-        return true;
-      default:
-        throw new Error("Huh, unknown status, how could this happen?");
+    if (this.filtered) {
+      if (this.struct['shown'] === undefined) {
+        return this.isInDisclosureResults() || (this.whereInSearchResults() > -1);
+      } else {
+        return this.struct['shown'];
+      }
+    } else {
+      return true;
     }
   }
 
   isDisclosed() {
-    switch (this.status) {
-      case "opened":
-        if (this.struct['disclosed'] === undefined) {
-          return this.depth < this.initDepth;
-        } else {
-          return this.struct['disclosed'];
-        }
-      case "filtered":
-        if (this.struct['disclosed'] === undefined) {
-          return this.isInDisclosureResults();
-        } else {
-          return this.struct['disclosed'];
-        }
-      case "unfiltered":
+    if (this.filtered === undefined) {
+      if (this.struct['disclosed'] === undefined) {
+        return this.depth < this.initDepth;
+      } else {
+        return this.struct['disclosed'];
+      }
+    } else {
+      if (this.filtered) {
         if (this.struct['disclosed'] === undefined) {
           return this.isInDisclosureResults();
         } else {
           return this.struct['disclosed'];
         }
-      default:
-        throw new Error(`Huh, unknown status [${this.status}], how could this happen?`);
+      } else {
+        if (this.struct['disclosed'] === undefined) {
+          return this.isInDisclosureResults();
+        } else {
+          return this.struct['disclosed'];
+        }
+      }
     }
   }
 
-  select() {
-    this.triggerSelect();
+  destroy() {
+    document.removeEventListener(`edam:${this.id}:select`, this.select);
+    document.removeEventListener(`edam:${this.id}:unselect`, this.unselect);
+  }
+
+
+  _select() {
+    this.term['selected'] = true;
+
+    this.el.parentNode.replaceChild(new TreeMenu(this.struct, {
+      initDepth: this.initDepth,
+      depth: this.depth,
+      type: this.type,
+      edam: this.edam,
+      id: this.id,
+      selected: this.selected,
+      searchResults: this.searchResults,
+      disclosureResults: this.disclosureResults,
+      fuseResults: this.fuseResults,
+      spotlight: this.spotlight,
+      treeNodes: this.treeNodes,
+      filtered: this.filtered,
+    }), this.el);
+
+    this.destroy();
+  }
+
+  _unselect() {
+
+    this.term['selected'] = false;
+
+    this.el.parentNode.replaceChild(new TreeMenu(this.struct, {
+        initDepth: this.initDepth,
+        depth: this.depth,
+        type: this.type,
+        edam: this.edam,
+        id: this.id,
+        selected: this.selected,
+        searchResults: this.searchResults,
+        disclosureResults: this.disclosureResults,
+        fuseResults: this.fuseResults,
+        spotlight: this.spotlight,
+        treeNodes: this.treeNodes,
+        filtered: this.filtered,
+    }), this.el);
+
+    this.destroy();
+
   }
 
   disclose() {
@@ -887,15 +1093,17 @@ class TreeMenu {
       initDepth: this.initDepth,
       depth: this.depth,
       type: this.type,
-      status: this.status,
       edam: this.edam,
       id: this.id,
+      selected: this.selected,
       searchResults: this.searchResults,
       disclosureResults: this.disclosureResults,
       fuseResults: this.fuseResults,
       spotlight: this.spotlight,
       treeNodes: this.treeNodes,
+      filtered: this.filtered,
     }), this.el);
+    this.destroy();
 
     console.timeEnd('Disclose');
   }
@@ -905,7 +1113,7 @@ class TreeMenu {
   }
 
   whereInSearchResults() {
-     return this.searchResults.indexOf(this.struct[TERM_FID]);
+    return this.searchResults.indexOf(this.struct[TERM_FID]);
   }
 
   remove() {
@@ -914,9 +1122,9 @@ class TreeMenu {
 }
 
 console.time('Application');
-  let edamSelect = new EdamSelect('#app', {
-    initDepth: 1,
-    type: 'data',
-    inline: true,
-  });
+let edamSelect = new EdamSelect('#app', {
+  initDepth: 1,
+  type: 'data',
+  inline: true,
+});
 console.timeEnd('Application');

@@ -71,21 +71,26 @@ class Spotlight {
   }
 
   prev(uid = this.spotlight) {
-    let currentTree = document.getElementById(uid);
-    let prevNode;
-    if (currentTree.previousSibling) {
-      prevNode = currentTree.previousSibling;
-      let childNodes = prevNode.getElementsByClassName(style['tree-menu']);
-      if (childNodes.length > 0) {
-        prevNode = childNodes[childNodes.length - 1];
+    try {
+      let currentTree = document.getElementById(uid);
+      let prevNode;
+      if (currentTree.previousSibling) {
+        prevNode = currentTree.previousSibling;
+        let childNodes = prevNode.getElementsByClassName(style['tree-menu']);
+        if (childNodes.length > 0) {
+          prevNode = childNodes[childNodes.length - 1];
+        }
+      } else {
+        prevNode = this.prevSiblingOfAncestors(currentTree);
       }
-    } else {
-      prevNode = this.prevSiblingOfAncestors(currentTree);
-    }
-    if (prevNode.style.display !== 'none') {
-      this.setSpotlight(prevNode.id);
-    } else {
-      this.prev(prevNode.id);
+      if (prevNode.style.display !== 'none') {
+        this.setSpotlight(prevNode.id);
+      } else {
+        this.prev(prevNode.id);
+      }
+    } catch (err) {
+      console.warn(err);
+      this.setFirstVisible();
     }
   }
 
@@ -105,21 +110,26 @@ class Spotlight {
   }
 
   next(uid = this.spotlight) {
-    let currentTree = document.getElementById(uid);
-    let childNodes = currentTree.getElementsByClassName(style['tree-menu']);
-    let nextNode;
+    try {
+      let currentTree = document.getElementById(uid);
+      let childNodes = currentTree.getElementsByClassName(style['tree-menu']);
+      let nextNode;
 
-    if (childNodes.length > 0) {
-      nextNode = childNodes[0];
-    } else if (currentTree.nextSibling) {
-      nextNode = currentTree.nextSibling;
-    } else {
-      nextNode = this.nextSiblingOfAncestors(currentTree);
-    }
-    if (nextNode.style.display !== 'none') {
-      this.setSpotlight(nextNode.id);
-    } else {
-      this.next(nextNode.id);
+      if (childNodes.length > 0) {
+        nextNode = childNodes[0];
+      } else if (currentTree.nextSibling) {
+        nextNode = currentTree.nextSibling;
+      } else {
+        nextNode = this.nextSiblingOfAncestors(currentTree);
+      }
+      if (nextNode.style.display !== 'none') {
+        this.setSpotlight(nextNode.id);
+      } else {
+        this.next(nextNode.id);
+      }
+    } catch (err) {
+      console.warn(err);
+      this.setFirstVisible();
     }
   }
 
@@ -225,7 +235,8 @@ class EdamSelect {
     // new statuses
     this.selected = false;
     this.filtered = undefined;
-    this.focused = true;
+
+    this.focused = 0; // 0 - no; 1 - input; 2 - menu
 
     console.time('Fuse init');
     this.fuse = new Fuse(this.data, {
@@ -302,13 +313,15 @@ class EdamSelect {
 
     if (this.opened) {
 
+      // this.focusMenu();
+
       let treeMenu = new TreeMenu(this.root, {
         initDepth: this.initDepth,
         depth: 0,
         type: this.type,
         edam: this.edam,
         id: this.id,
-        selected: this.selected,
+        selected: false,
         searchResults: this.searchResults, // NB! Stores term_ids
         disclosureResults: this.disclosureResults, // Stores rel_ids!
         fuseResults: this.fuseResults,
@@ -335,6 +348,33 @@ class EdamSelect {
     console.timeEnd('Tree rendering');
   }
 
+  focusInput() {
+    this.el.getElementsByClassName(style['edam-select-menu'])[0].classList.remove(style['menu-focus']);
+
+    this.el.getElementsByClassName(style['edam-select-container'])[0].classList.add(style['input-focus']);
+    // this.el.getElementsByTagName('input')[0].focus();
+    this.focused = 1;
+  }
+
+  blurInput() {
+    this.el.getElementsByClassName(style['edam-select-container'])[0].classList.remove(style['input-focus']);
+    // this.el.getElementsByTagName('input')[0].blur();
+    this.focused = 0;
+  }
+
+  focusMenu() {
+    this.el.getElementsByClassName(style['edam-select-container'])[0].classList.remove(style['input-focus']);
+    this.el.getElementsByTagName('input')[0].blur();
+
+    this.el.getElementsByClassName(style['edam-select-menu'])[0].classList.add(style['menu-focus']);
+    this.focused = 2;
+  }
+
+  blurMenu() {
+    this.el.getElementsByClassName(style['edam-select-menu'])[0].classList.remove(style['menu-focus']);
+    this.focused = 0;
+  }
+
   generateEdamSelectView() {
     let edamSelectWrap = document.createElement('div');
     edamSelectWrap.className = style['edam-select-wrap'];
@@ -354,6 +394,7 @@ class EdamSelect {
 
     let input = document.createElement('input');
     input.type = 'text';
+    input.placeholder = 'Search for a term...';
 
     let edamSelectMenuWrap = document.createElement('div');
     edamSelectMenuWrap.className = style['edam-select-menu-wrap'];
@@ -366,7 +407,6 @@ class EdamSelect {
 
     let edamSelectRemove = document.createElement('div');
     edamSelectRemove.className = style['remove'];
-
 
     edamSelectRemove.appendChild(document.createTextNode("×"));
     edamSelectRemoveWrap.appendChild(edamSelectRemove);
@@ -402,7 +442,6 @@ class EdamSelect {
 
 
     edamSelectMenuWrap.appendChild(edamSelectMenu);
-
 
     let divForMeasures = document.createElement("div");
     divForMeasures.className = style['div-for-measures'];
@@ -470,6 +509,13 @@ class EdamSelect {
       }
     });
 
+    input.addEventListener('focus', (e) => {
+      this.focusInput();
+    });
+    input.addEventListener('blur', (e) => {
+      this.blurInput();
+    });
+
     // event handlers will be here
     edamSelectArrowWrap.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -486,9 +532,35 @@ class EdamSelect {
       }
     });
 
+    let recalculateInput = () => {
+      let min = divForMeasures.getBoundingClientRect().width + 5 + 3;
+
+      let max = input.parentNode.parentNode.getBoundingClientRect().width -
+        edamSelectArrowWrap.getBoundingClientRect().width -
+        edamSelectRemoveWrap.getBoundingClientRect().width;
+
+      let w = max -
+        edamTagsWrap.getBoundingClientRect().width % max - 5 - 3;
+
+      if (w >= min) {
+        input.style.width = w + 'px';
+      } else if (w >= max - 5 - 3) {
+        input.style.width = (max - 5 - 3) + 'px';
+      } else {
+        input.style.width = min + 'px';
+      }
+
+      if (input.getBoundingClientRect().width < 150) {
+        input.placeholder = 'Search';
+      } else {
+        input.placeholder = 'Search for a term...';
+      }
+    };
+
     input.addEventListener('input', (e) => {
       divForMeasures.innerText = e.target.value;
-      input.style.width = (divForMeasures.clientWidth + 5) + 'px';
+
+      recalculateInput();
 
       this.search(e);
     });
@@ -543,12 +615,12 @@ class EdamSelect {
       }
 
       this.setReset();
+      recalculateInput();
     });
 
     document.addEventListener(`edam:${this.id}:unselect`, (e) => {
-      console.log(this.selected)
       this.selected = this.selected.filter((t) => {
-        return t !== e.detail;
+        return t.termId !== e.detail.termId;
       });
 
       this.edam.data[this.edam.dataIndex()[e.detail.termId]].selected = false;
@@ -558,26 +630,79 @@ class EdamSelect {
       }
 
       renderTags();
+      recalculateInput();
     });
 
 
     document.addEventListener('keydown', (e) => {
       if (e.keyCode === 40) { // down
-        e.preventDefault();
-        this.spotlight.next();
+        if (this.focused) {
+          e.preventDefault();
+          input.blur();
+          this.focusMenu();
+          this.spotlight.next();
+        }
       } else if (e.keyCode === 38) { // up
-        e.preventDefault();
-        this.spotlight.prev();
+        if (this.focused) {
+          e.preventDefault();
+          input.blur();
+          this.focusMenu();
+          this.spotlight.prev();
+        }
       } else if (e.keyCode === 39) { // right
-        e.preventDefault();
-        if (!this.treeNodes[this.spotlight.spotlight].isDisclosed()) {
-          this.treeNodes[this.spotlight.spotlight].disclose();
+        if (this.focused === 2) {
+          e.preventDefault();
+          if (!this.treeNodes[this.spotlight.spotlight].isDisclosed()) {
+            this.treeNodes[this.spotlight.spotlight].disclose();
+          }
         }
       } else if (e.keyCode === 37) { // left 37
-        e.preventDefault();
-        if (this.treeNodes[this.spotlight.spotlight].isDisclosed()) {
-          this.treeNodes[this.spotlight.spotlight].disclose();
+        if (this.focused === 2) {
+          e.preventDefault();
+          if (this.treeNodes[this.spotlight.spotlight].isDisclosed()) {
+            this.treeNodes[this.spotlight.spotlight].disclose();
+          }
         }
+      } else if (e.keyCode === 32 || e.keyCode === 13) { // space or return
+        if (this.focused === 2) {
+          e.preventDefault();
+          let treeMenu = this.treeNodes[this.spotlight.spotlight];
+          if (!treeMenu.selected) {
+            treeMenu.triggerSelect();
+          } else {
+            let event = new CustomEvent('edam:' + this.id + ':unselect', {
+              detail: new Tag(treeMenu),
+            });
+            document.dispatchEvent(event);
+          }
+        }
+      } else if (e.keyCode === 8) { // backspace
+        input.focus();
+        if (input.value.length === 0) {
+          let tag = this.selected.pop();
+          if (tag) {
+            let event = new CustomEvent('edam:' + this.id + ':unselect', {
+              detail: tag,
+            });
+            document.dispatchEvent(event);
+          }
+        }
+      } else if (e.keyCode === 9) { // tab
+        if (this.focused === 1) {
+          e.preventDefault();
+          this.focusMenu();
+        } else if (this.focused === 2) {
+          this.blurMenu();
+        }
+      } else if (e.keyCode === 27) { // esc
+        if (this.focused === 1) {
+          input.blur();
+        } else if (this.focused === 2) {
+          input.focus();
+        }
+        // think what to do
+      } else {
+        input.focus();
       }
     });
 
@@ -725,12 +850,11 @@ class TreeMenu {
 
     this.filtered = params.filtered;
 
-    this.selected = params.selected;
-
-
     this.struct = struct;
 
     this.term = this.edam.data[this.edam.dataIndex()[this.struct[TERM_FID]]];
+
+    this.selected = this.term['selected'];
 
     this.el = this.generateEdamSelectMenuItemView();
     return this.el;
@@ -813,7 +937,14 @@ class TreeMenu {
 
       labelIndent.appendChild(triangleWrap);
       labelIndent.appendChild(term);
-      labelIndent.appendChild(info);
+      // labelIndent.appendChild(info);
+
+      let checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = style['checkbox'];
+      checkbox.tabIndex = -1;
+
+      labelIndent.appendChild(checkbox);
 
       triangleWrap.appendChild(triangle);
 
@@ -822,10 +953,11 @@ class TreeMenu {
 
       if (this.term['selected']) {
         term.classList.add(style['selected']);
+        checkbox.checked = true;
       }
 
       // to save operations on access to elements we can add handlers right here?
-      info.addEventListener('click', (e) => {
+      labelWrapper.addEventListener('click', (e) => {
         e.stopPropagation();
         let details = labelWrapper.getElementsByClassName(style['details'])[0];
         if (details) {
@@ -901,22 +1033,18 @@ class TreeMenu {
         this.spotlight.setSpotlight(id);
       });
 
-      labelWrapper.addEventListener('click', (e) => {
+      checkbox.addEventListener('click', (e) => {e.stopPropagation();});
+      checkbox.addEventListener('change', (e) => {
         e.stopPropagation();
-
         if (!this.term.selected) {
-          // labelWrapper.classList.add(style['spotlight']);
           this.triggerSelect();
+        } else {
+          let event = new CustomEvent('edam:' + this.id + ':unselect', {
+            detail: new Tag(this),
+          });
+          document.dispatchEvent(event);
         }
-
       });
-
-      // console.log('edam:' + this.id + ':spotlight');
-      // document.addEventListener('edam:' + this.id + ':spotlight', (e) => {
-      //   console.log(321);
-      // }, true);
-
-
 
       // styles go here for the same reason
       labelIndent.style.marginLeft = (this.depth - 0.5) + 'em';
@@ -933,6 +1061,7 @@ class TreeMenu {
       if (whereInSearchResults > -1 && this.fuseResults.length > 0) {
 
         labelIndent.classList.add(style['highlighted']);
+        labelWrapper.classList.add(style['highlighted']);
 
         let i, l = this.fuseResults[whereInSearchResults].matches.length;
         let j, ll, start, end, innerHTML;
@@ -987,6 +1116,7 @@ class TreeMenu {
         }
       } else {
         labelIndent.classList.remove(style['highlighted']);
+        labelWrapper.classList.remove(style['highlighted']);
       }
 
     }
@@ -1091,45 +1221,52 @@ class TreeMenu {
 
   _select() {
     this.term['selected'] = true;
+    this.selected = true;
 
-    this.el.parentNode.replaceChild(new TreeMenu(this.struct, {
-      initDepth: this.initDepth,
-      depth: this.depth,
-      type: this.type,
-      edam: this.edam,
-      id: this.id,
-      selected: this.selected,
-      searchResults: this.searchResults,
-      disclosureResults: this.disclosureResults,
-      fuseResults: this.fuseResults,
-      spotlight: this.spotlight,
-      treeNodes: this.treeNodes,
-      filtered: this.filtered,
-    }), this.el);
+    this.el.getElementsByClassName(style['term'])[0].classList.add(style['selected']);
+    this.el.getElementsByTagName('input')[0].checked = true;
 
-    this.destroy();
+    // this.el.parentNode.replaceChild(new TreeMenu(this.struct, {
+    //   initDepth: this.initDepth,
+    //   depth: this.depth,
+    //   type: this.type,
+    //   edam: this.edam,
+    //   id: this.id,
+    //   selected: this.selected,
+    //   searchResults: this.searchResults,
+    //   disclosureResults: this.disclosureResults,
+    //   fuseResults: this.fuseResults,
+    //   spotlight: this.spotlight,
+    //   treeNodes: this.treeNodes,
+    //   filtered: this.filtered,
+    // }), this.el);
+
+    // this.destroy();
   }
 
   _unselect() {
-
     this.term['selected'] = false;
+    this.selected = false;
 
-    this.el.parentNode.replaceChild(new TreeMenu(this.struct, {
-        initDepth: this.initDepth,
-        depth: this.depth,
-        type: this.type,
-        edam: this.edam,
-        id: this.id,
-        selected: this.selected,
-        searchResults: this.searchResults,
-        disclosureResults: this.disclosureResults,
-        fuseResults: this.fuseResults,
-        spotlight: this.spotlight,
-        treeNodes: this.treeNodes,
-        filtered: this.filtered,
-    }), this.el);
+    this.el.getElementsByClassName(style['term'])[0].classList.remove(style['selected']);
+    this.el.getElementsByTagName('input')[0].checked = false;
 
-    this.destroy();
+    // this.el.parentNode.replaceChild(new TreeMenu(this.struct, {
+    //     initDepth: this.initDepth,
+    //     depth: this.depth,
+    //     type: this.type,
+    //     edam: this.edam,
+    //     id: this.id,
+    //     selected: this.selected,
+    //     searchResults: this.searchResults,
+    //     disclosureResults: this.disclosureResults,
+    //     fuseResults: this.fuseResults,
+    //     spotlight: this.spotlight,
+    //     treeNodes: this.treeNodes,
+    //     filtered: this.filtered,
+    // }), this.el);
+
+    // this.destroy();
 
   }
 
@@ -1155,7 +1292,7 @@ class TreeMenu {
       type: this.type,
       edam: this.edam,
       id: this.id,
-      selected: this.selected,
+      selected: false,
       searchResults: this.searchResults,
       disclosureResults: this.disclosureResults,
       fuseResults: this.fuseResults,
@@ -1186,5 +1323,6 @@ let edamSelect = new EdamSelect('#app', {
   initDepth: 1,
   type: 'data',
   inline: false,
+  opened: true
 });
 console.timeEnd('Application');

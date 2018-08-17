@@ -39,6 +39,12 @@ body {
 
 // REmove dis later okay
 
+:local(.placeholder) {
+  color: lightgrey;
+  position: absolute;
+  top: 10px;
+}
+
 :local(.test) {
   background-color: grey;
   width: 100px;
@@ -72,6 +78,7 @@ body {
   position: fixed;
   top: -100px;
   overflow:auto;
+  min-width: 42px;
 }
 
 //:local(.tag) {
@@ -132,15 +139,6 @@ body {
     margin: 0;
     padding: 0;
     list-style-type: none;
-  }
-
-  :local(.spotlight) {
-    background-color: rgba(0, 126, 255, 0.08);
-    color: #333;
-    color: #666;
-    cursor: pointer;
-    //padding: 8px 10px;
-    //max-height: 32px;
   }
 
   :local(.tags-wrap) {
@@ -285,6 +283,18 @@ body {
     box-shadow: inset 0 1px 1px rgba(0, 0, 0, .075), 0 0 0 3px rgba(0, 126, 255, .1);
   }
 
+  :local(.edam-select-container):local(.input-focus) {
+    box-shadow: 0 0 10px #9ecaed;
+    border-color: #9ecaed;
+  }
+
+  ul:local(.edam-select-menu):local(.menu-focus) {
+    box-shadow: 0 0 10px #9ecaed;
+    border-right-color: #9ecaed;
+    border-left-color: #9ecaed;
+    border-bottom-color: #9ecaed;
+  }
+
   :local(.edam-select-container) {
     border: 1px solid #ccc;
     border-radius: 4px;
@@ -308,8 +318,8 @@ body {
 
     :local(.edam-select-input-wrap) {
       display: inline-block;
-      margin-left: 0.5em;
-      margin-right: 0.5em;
+      margin-left: 5px;
+      //margin-right: 0.5em;
       padding: 0;
       vertical-align: middle;
       padding-bottom: 0.4em;
@@ -322,7 +332,7 @@ body {
         line-height: 1;
         padding: 0;
         padding-top: 0.5em;
-        width: 50px;
+        width: 150px;
 
         @include placeholder {
           color: #999;
@@ -332,6 +342,9 @@ body {
   }
 
   :local(.edam-select-menu-wrap) {
+    overflow-y: hidden;
+    padding: 0 10px 10px 10px;
+    margin: 0 -10px;
 
     :local(.edam-select-menu) {
       color: #666;
@@ -385,9 +398,27 @@ body {
     height: 1px;
   }
 
-  :local(.highlighted) {
-    /*background-color: yellow;*/
-    border-right: 2px solid #666;
+  :local(.label-wrapper) {
+    :local(.highlighted) {
+      border-right: 2px solid #666;
+    }
+  }
+
+  :local(.label-wrapper):local(.highlighted) {
+    background-color: rgba(100, 100, 100, 0.08)
+  }
+
+  :local(.label-wrapper):local(.spotlight) {
+    background-color: rgba(0, 126, 255, 0.16);
+    color: #333;
+    color: #666;
+    cursor: pointer;
+    //padding: 8px 10px;
+    //max-height: 32px;
+  }
+
+  :local(.label-wrapper):local(.spotlight):local(.highlighted) {
+    background-color: rgba(0, 126, 255, 0.16);
   }
 
   :local(.selected) {
@@ -490,6 +521,16 @@ body {
         background-repeat: no-repeat;
       }
     }
+  }
+
+  :local(.checkbox) {
+    display: inline-block;
+    position: absolute;
+    right: 5px;
+    margin-top: -17px;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
   }
 
   :local(.show) {

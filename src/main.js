@@ -26,8 +26,14 @@ class Spotlight {
     this.spotlight = undefined;
   }
 
+  reset() {
+    this.spotlight = undefined;
+  }
+
   setSpotlight(uid) {
     if (this.spotlight) {
+      document.getElementById(this.spotlight)
+        .getElementsByClassName(style['label-wrapper']) &&
       document.getElementById(this.spotlight)
         .getElementsByClassName(style['label-wrapper'])[0]
         .classList.remove(style['spotlight']);
@@ -36,6 +42,8 @@ class Spotlight {
     document.getElementById(this.spotlight)
       .getElementsByClassName(style['label-wrapper'])[0]
       .classList.add(style['spotlight']);
+
+    // document.getElementById(this.spotlight).scrollIntoView();
   }
 
   getSpotlightId() {
@@ -90,7 +98,8 @@ class Spotlight {
       }
     } catch (err) {
       console.warn(err);
-      this.setFirstVisible();
+      console.trace();
+      // this.setFirstVisible();
     }
   }
 
@@ -129,7 +138,8 @@ class Spotlight {
       }
     } catch (err) {
       console.warn(err);
-      this.setFirstVisible();
+
+      // this.setFirstVisible();
     }
   }
 
@@ -217,7 +227,6 @@ class EdamSelect {
     this.edam = new EDAM(this.type);
 
     this.spotlight = new Spotlight(this.id);
-    window.spotlight = this.spotlight;
 
     this.data = this.edam.data;
     this.structure = this.edam.structure;
@@ -486,6 +495,9 @@ class EdamSelect {
 
         this.resetChanges();
         this.clearSearch();
+
+        this.spotlight.reset();
+
         this.init();
       } else if (edamSelectRemove.classList.contains(style['clear-text'])) {
         input.value = '';
@@ -1069,24 +1081,26 @@ class TreeMenu {
         for (i = 0; i < l; i += 1) {
 
           if (this.fuseResults[whereInSearchResults].matches[i].key === "2") {
-            ll = this.fuseResults[whereInSearchResults].matches[i].indices.length;
-            for (j = 0; j < ll; j += 1) {
 
-              // console.log(j);
+            ll = this.fuseResults[whereInSearchResults].matches[i].indices.length;
+
+            let temp = this.term[LABEL];
+            let k = 0;
+
+            for (j = 0; j < ll; j += 1) {
 
               start = this.fuseResults[whereInSearchResults].matches[i].indices[j][0];
               end = this.fuseResults[whereInSearchResults].matches[i].indices[j][1];
 
               if (end - start > 0) {
-                innerHTML = this.term[LABEL].substring(0, start) +
-                  "<strong>" + this.term[LABEL].substring(start, end + 1) + "</strong>" +
-                  this.term[LABEL].substring(end + 1, this.term[LABEL].length);
+                temp = temp.substring(0, start + 17 * k) +
+                  "<strong>" + temp.substring(start + 17 * k, end + 1 + 17 * k) + "</strong>" +
+                  temp.substring(end + 1 + 17 * k, temp.length);
 
-                // console.log(innerHTML);
-
-                term.innerHTML = innerHTML;
+                k += 1;
                 found = true;
               }
+              term.innerHTML = temp;
             }
           } else if (this.fuseResults[whereInSearchResults].matches[i].key === "3" && !found) {
             let bySynonyms = term.getElementsByClassName(style["by"]);
@@ -1286,7 +1300,7 @@ class TreeMenu {
       }
     }
 
-    this.el.parentNode.replaceChild(new TreeMenu(this.struct, {
+    let newTree = new TreeMenu(this.struct, {
       initDepth: this.initDepth,
       depth: this.depth,
       type: this.type,
@@ -1299,7 +1313,12 @@ class TreeMenu {
       spotlight: this.spotlight,
       treeNodes: this.treeNodes,
       filtered: this.filtered,
-    }), this.el);
+    });
+
+    this.el.parentNode.replaceChild(newTree, this.el);
+
+    // newTree.lastChild.scrollIntoView();
+
     this.destroy();
 
     console.timeEnd('Disclose');

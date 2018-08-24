@@ -464,7 +464,7 @@ body {
   }
 
   :local(.details) {
-    display: inline-block;
+    //display: inline-block;
     position: relative;
     //top: 5px;
     color: #31708f;
@@ -472,6 +472,7 @@ body {
     max-height: 0;
     overflow: hidden;
     padding-left: 19px;
+    left: -19px;
     padding-right: 8px;
     padding-bottom: 1px;
     top: -3px;

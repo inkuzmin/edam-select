@@ -239,18 +239,37 @@ class EdamSelect {
     this.inline = params.inline;
     this.opened = params.opened;
 
+    this.maxHeight = params.maxHeight;
+
     // new statuses
     this.selected = false;
     this.filtered = undefined;
 
+    this.multiselect = params.multiselect;
+
     this.focused = 0; // 0 - no; 1 - input; 2 - menu
 
+    let threshold = (params.search && params.search.threshold) || 0.2;
+    let searchKeys = [];
+    if (params.search) {
+      if (params.search.label) {
+        searchKeys.push('2');
+      }
+      if (params.search.synonyms) {
+        searchKeys.push('3');
+      }
+      if (params.search.definitions) {
+        searchKeys.push('4');
+      }
+    } else {
+      searchKeys = ['2', '3', '4'];
+    }
     console.time('Fuse init');
     this.fuse = new Fuse(this.data, {
-      keys: ['2', '3', '4'],
+      keys: searchKeys,
       shouldSort: true,
       includeMatches: true,
-      threshold: 0.2,
+      threshold: threshold,
       location: 0,
       distance: 100,
       maxPatternLength: 32,
@@ -310,6 +329,15 @@ class EdamSelect {
   init() {
     console.time('Tree rendering');
 
+    // if (!this.multiselect) {
+    //   if (this.selected.length > 0) {
+    //     this.opened = false;
+    //     let input = this.el.getElementsByTagName('input')[0];
+    //     input.placeholder = '';
+        // input.disabled = 'disabled';
+      // }
+    // }
+
     this.setReset();
 
     if (this.searchResults.length === 0 && this.filtered !== undefined) {
@@ -335,6 +363,7 @@ class EdamSelect {
         spotlight: this.spotlight,
         treeNodes: this.treeNodes,
         filtered: this.filtered,
+        multiselect: this.multiselect,
         // changed: this.changed -- no, this is child - parent channel, it should be impl. with events...
       });
 
@@ -346,11 +375,11 @@ class EdamSelect {
       }
     }
 
-
-
     if ((this.spotlight.spotlight === undefined || this.filtered) && this.opened) {
       this.spotlight.setFirstVisible();
     }
+
+    this.scrollAfterUpDown();
 
     console.timeEnd('Tree rendering');
   }
@@ -373,21 +402,30 @@ class EdamSelect {
     this.el.getElementsByClassName(style['edam-select-container'])[0].classList.remove(style['input-focus']);
     this.el.getElementsByTagName('input')[0].blur();
 
-    this.el.getElementsByClassName(style['edam-select-menu'])[0].classList.add(style['menu-focus']);
     this.focused = 2;
+
+
+    this.el.getElementsByClassName(style['edam-select-menu'])[0].classList.add(style['menu-focus']);
   }
 
   blurMenu() {
     this.el.getElementsByClassName(style['edam-select-menu'])[0].classList.remove(style['menu-focus']);
     this.focused = 0;
+
+    if (this.inline && this.opened && this.focused === 0) {
+      this.el.classList.remove(style['is-open']);
+      this.opened = false;
+      this.init();
+    }
+
   }
 
   scrollAfterUpDown() {
-    let element = document.getElementById(this.spotlight.spotlight).getElementsByClassName(style['label-wrapper'])[0];
+    let element = document.getElementById(this.spotlight.spotlight) && document.getElementById(this.spotlight.spotlight).getElementsByClassName(style['label-wrapper'])[0];
 
     if (element) {
 
-      if (this.inline) {
+      if (this.maxHeight) {
         let wrap = this.el.getElementsByClassName(style['edam-select-menu'])[0];
         let wrapHeight = wrap.clientHeight;
         let height = element.getBoundingClientRect().height;
@@ -412,7 +450,6 @@ class EdamSelect {
         }
       }
 
-
     }
   }
 
@@ -421,7 +458,7 @@ class EdamSelect {
     let childNodes = element.getElementsByClassName(style['tree-menu']);
 
     if (childNodes.length > 0) {
-      if (this.inline) {
+      if (this.maxHeight) {
         let wrap = this.el.getElementsByClassName(style['edam-select-menu'])[0];
         let wrapHeight = wrap.clientHeight;
 
@@ -433,7 +470,6 @@ class EdamSelect {
         if (r >= 0) {
           wrap.scrollTop += (r);
         }
-
       } else {
         let rect = childNodes[childNodes.length - 1].getBoundingClientRect();
         let r = window.innerHeight - rect.bottom;
@@ -474,6 +510,10 @@ class EdamSelect {
 
     let edamSelectRemoveWrap = document.createElement('div');
     edamSelectRemoveWrap.className = style['remove-wrap'];
+
+    if (this.maxHeight) {
+      edamSelectMenu.style.maxHeight = this.maxHeight + "px";
+    }
 
     let edamSelectRemove = document.createElement('div');
     edamSelectRemove.className = style['remove'];
@@ -571,7 +611,15 @@ class EdamSelect {
       edamSelectWrap.classList.add(style['is-open']);
     }
 
-    edamSelectContainer.addEventListener('click', () => {
+    edamSelectContainer.addEventListener('click', (e) => {
+      e.stopPropagation();
+
+      if (!this.multiselect) {
+        if (this.selected.length > 0) {
+          return false;
+        }
+      }
+
       if (!this.opened) {
         this.opened = true;
         edamSelectWrap.classList.add(style['is-open']);
@@ -583,11 +631,23 @@ class EdamSelect {
     });
 
     input.addEventListener('focus', (e) => {
+      if (!this.opened) {
+        this.opened = true;
+        edamSelectWrap.classList.add(style['is-open']);
+        input.focus();
+        this.init();
+      }
       this.focusInput();
     });
     input.addEventListener('blur', (e) => {
       this.blurInput();
     });
+
+    // if (this.inline) {
+      document.addEventListener('click', (e) => {
+        this.blurMenu();
+      });
+    // }
 
     // event handlers will be here
     edamSelectArrowWrap.addEventListener('click', (e) => {
@@ -602,6 +662,19 @@ class EdamSelect {
         this.opened = true;
         input.focus();
         this.init();
+      }
+    });
+
+    edamSelectMenuWrap.addEventListener('mousedown', () => {
+      if (this.focused !== 2) {
+        input.blur();
+        this.focusMenu();
+      }
+    });
+    edamSelectMenuWrap.addEventListener('touchstart', () => {
+      if (this.focused !== 2) {
+        input.blur();
+        this.focusMenu();
       }
     });
 
@@ -682,6 +755,17 @@ class EdamSelect {
     document.addEventListener(`edam:${this.id}:select`, (e) => {
       let tag = new Tag(e.detail);
 
+      if (!this.multiselect) {
+       if (this.selected.length > 0) {
+         this.selected.forEach((tag)=>{
+           let event = new CustomEvent('edam:' + this.id + ':unselect', {
+             detail: tag,
+           });
+           document.dispatchEvent(event);
+         });
+       }
+      }
+
       if (this.selected.findIndex(t => tag.termId === t.termId) === -1) {
         this.selected.push(tag);
         renderTags();
@@ -689,6 +773,8 @@ class EdamSelect {
 
       this.setReset();
       recalculateInput();
+
+      // this.checkMultiselect();
     });
 
     document.addEventListener(`edam:${this.id}:unselect`, (e) => {
@@ -704,6 +790,8 @@ class EdamSelect {
 
       renderTags();
       recalculateInput();
+
+      // this.checkMultiselect();
     });
 
 
@@ -768,17 +856,23 @@ class EdamSelect {
         }
       } else if (e.keyCode === 9) { // tab
         if (this.focused === 1) {
-          e.preventDefault();
-          this.focusMenu();
+          if (this.opened) {
+            e.preventDefault();
+            this.focusMenu();
+          }
         } else if (this.focused === 2) {
           this.blurMenu();
         }
       } else if (e.keyCode === 27) { // esc
         if (this.focused === 1) {
           input.blur();
+          if (this.inline) {
+            this.blurMenu();
+          }
         } else if (this.focused === 2) {
           input.focus();
         }
+
         // think what to do
       } else {
         input.focus();
@@ -819,10 +913,34 @@ class EdamSelect {
     }
   }
 
+  // checkMultiselect() {
+    // if (!this.multiselect) {
+    //   if (this.selected.length > 0) {
+    //
+    //
+    //     this.el.classList.remove(style['is-open']);
+    //     this.opened = false;
+    //     this.el.getElementsByTagName('input')[0].blur();
+    //     this.init();
+    //
+    //   } else {
+    //     this.el.classList.add(style['is-open']);
+    //     this.opened = true;
+    //     this.el.getElementsByTagName('input')[0].focus();
+    //     this.init();
+    //   }
+    // }
+  // }
+
   clearSearch() {
     this.searchResults = [];
     this.disclosureResults = [];
     this.fuseResults = [];
+  }
+
+  destroy() {
+    // TODO: remove listeners
+    // delete nodes
   }
 
   searchForReal(e) {
@@ -935,6 +1053,8 @@ class TreeMenu {
 
     this.selected = this.term['selected'];
 
+    this.multiselect = params.multiselect;
+
     this.el = this.generateEdamSelectMenuItemView();
     return this.el;
   }
@@ -1019,7 +1139,11 @@ class TreeMenu {
       // labelIndent.appendChild(info);
 
       let checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
+      if (this.multiselect) {
+        checkbox.type = 'checkbox';
+      } else {
+        checkbox.type = 'radio';
+      }
       checkbox.className = style['checkbox'];
       checkbox.tabIndex = -1;
 
@@ -1112,8 +1236,7 @@ class TreeMenu {
         this.spotlight.setSpotlight(id);
       });
 
-      checkbox.addEventListener('click', (e) => {e.stopPropagation();});
-      checkbox.addEventListener('change', (e) => {
+      checkbox.addEventListener('click', (e) => {
         e.stopPropagation();
         if (!this.term.selected) {
           this.triggerSelect();
@@ -1123,6 +1246,17 @@ class TreeMenu {
           });
           document.dispatchEvent(event);
         }
+      });
+      checkbox.addEventListener('change', (e) => {
+        e.stopPropagation();
+        // if (!this.term.selected) {
+        //   this.triggerSelect();
+        // } else {
+        //   let event = new CustomEvent('edam:' + this.id + ':unselect', {
+        //     detail: new Tag(this),
+        //   });
+        //   document.dispatchEvent(event);
+        // }
       });
 
       // styles go here for the same reason
@@ -1220,6 +1354,7 @@ class TreeMenu {
           spotlight: this.spotlight,
           treeNodes: this.treeNodes,
           filtered: this.filtered,
+          multiselect: this.multiselect,
         }));
       });
     }
@@ -1380,6 +1515,7 @@ class TreeMenu {
       spotlight: this.spotlight,
       treeNodes: this.treeNodes,
       filtered: this.filtered,
+      multiselect: this.multiselect,
     });
 
     this.el.parentNode.replaceChild(newTree, this.el);
@@ -1408,7 +1544,9 @@ console.time('Application');
 let edamSelect = new EdamSelect('#app', {
   initDepth: 1,
   type: 'data',
-  inline: true,
-  opened: true
+  inline: false,
+  opened: true,
+  maxHeight: 300,
+  multiselect: true,
 });
 console.timeEnd('Application');

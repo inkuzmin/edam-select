@@ -316,6 +316,19 @@ class EdamSelect {
     document.getElementsByClassName(style['edam-nothing-found'])[0].style.display = 'none';
   }
 
+  broadcast() {
+    let event = new CustomEvent('edam:change', {
+      detail: {
+        edamId: this.id,
+        edamType: this.type,
+        selected: this.selected.map((tag) => {
+          return this.edam.data[this.edam.dataIndex()[tag.termId]];
+        })
+      },
+    });
+    document.dispatchEvent(event);
+  }
+
   setReset() {
     if (this.el.getElementsByTagName('input')[0].value.length > 0) {
       this.setClearStatus('text');
@@ -328,15 +341,6 @@ class EdamSelect {
 
   init() {
     console.time('Tree rendering');
-
-    // if (!this.multiselect) {
-    //   if (this.selected.length > 0) {
-    //     this.opened = false;
-    //     let input = this.el.getElementsByTagName('input')[0];
-    //     input.placeholder = '';
-        // input.disabled = 'disabled';
-      // }
-    // }
 
     this.setReset();
 
@@ -774,6 +778,8 @@ class EdamSelect {
       this.setReset();
       recalculateInput();
 
+      this.broadcast();
+
       // this.checkMultiselect();
     });
 
@@ -790,6 +796,8 @@ class EdamSelect {
 
       renderTags();
       recalculateInput();
+
+      this.broadcast();
 
       // this.checkMultiselect();
     });

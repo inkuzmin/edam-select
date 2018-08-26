@@ -42,8 +42,6 @@ class Spotlight {
     document.getElementById(this.spotlight)
       .getElementsByClassName(style['label-wrapper'])[0]
       .classList.add(style['spotlight']);
-
-    // document.getElementById(this.spotlight).scrollIntoView();
   }
 
   getSpotlightId() {
@@ -384,6 +382,69 @@ class EdamSelect {
     this.focused = 0;
   }
 
+  scrollAfterUpDown() {
+    let element = document.getElementById(this.spotlight.spotlight).getElementsByClassName(style['label-wrapper'])[0];
+
+    if (element) {
+
+      if (this.inline) {
+        let wrap = this.el.getElementsByClassName(style['edam-select-menu'])[0];
+        let wrapHeight = wrap.clientHeight;
+        let height = element.getBoundingClientRect().height;
+
+
+        let r1 = (element.offsetTop + height) - (wrap.scrollTop + wrapHeight);
+        let r2 = element.offsetTop - wrap.scrollTop;
+
+        if (r1 >= 0) {
+          wrap.scrollTop += (r1);
+        } else if (r2 < 0) {
+          wrap.scrollTop = element.offsetTop;
+        }
+
+      } else {
+        let rect = element.getBoundingClientRect();
+        let r = window.innerHeight - rect.bottom;
+        if (!(rect.top >= 50)) {
+          window.scroll(0, window.scrollY + rect.top - 50);
+        } else if (!(r - 50 >= 0)) {
+          window.scroll(0, window.scrollY + 50 - r);
+        }
+      }
+
+
+    }
+  }
+
+  scrollAfterDisclose() {
+    let element = document.getElementById(this.spotlight.spotlight);
+    let childNodes = element.getElementsByClassName(style['tree-menu']);
+
+    if (childNodes.length > 0) {
+      if (this.inline) {
+        let wrap = this.el.getElementsByClassName(style['edam-select-menu'])[0];
+        let wrapHeight = wrap.clientHeight;
+
+        element = childNodes[childNodes.length - 1];
+        let height = element.getBoundingClientRect().height;
+
+        let r = (element.offsetTop + height) - (wrap.scrollTop + wrapHeight);
+
+        if (r >= 0) {
+          wrap.scrollTop += (r);
+        }
+
+      } else {
+        let rect = childNodes[childNodes.length - 1].getBoundingClientRect();
+        let r = window.innerHeight - rect.bottom;
+        if (!(r - 50 >= 0)) {
+          window.scroll(0, window.scrollY + 50 - r);
+        }
+      }
+      this.scrollAfterUpDown();
+    }
+  }
+
   generateEdamSelectView() {
     let edamSelectWrap = document.createElement('div');
     edamSelectWrap.className = style['edam-select-wrap'];
@@ -653,6 +714,8 @@ class EdamSelect {
           input.blur();
           this.focusMenu();
           this.spotlight.next();
+
+          this.scrollAfterUpDown();
         }
       } else if (e.keyCode === 38) { // up
         if (this.focused) {
@@ -660,12 +723,16 @@ class EdamSelect {
           input.blur();
           this.focusMenu();
           this.spotlight.prev();
+
+          this.scrollAfterUpDown();
         }
       } else if (e.keyCode === 39) { // right
         if (this.focused === 2) {
           e.preventDefault();
           if (!this.treeNodes[this.spotlight.spotlight].isDisclosed()) {
             this.treeNodes[this.spotlight.spotlight].disclose();
+
+            this.scrollAfterDisclose();
           }
         }
       } else if (e.keyCode === 37) { // left 37
@@ -1341,7 +1408,7 @@ console.time('Application');
 let edamSelect = new EdamSelect('#app', {
   initDepth: 1,
   type: 'data',
-  inline: false,
+  inline: true,
   opened: true
 });
 console.timeEnd('Application');

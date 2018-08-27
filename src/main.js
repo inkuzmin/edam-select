@@ -20,6 +20,8 @@ const SYNONYMS = 3;
 const DEFINITIONS = 4;
 const REL_FID = 5;
 
+const DEBUG = false;
+
 class Spotlight {
   constructor(id) {
     this.id = id;
@@ -95,8 +97,8 @@ class Spotlight {
         this.prev(prevNode.id);
       }
     } catch (err) {
-      console.warn(err);
-      console.trace();
+      DEBUG && console.warn(err);
+      DEBUG && console.trace();
       // this.setFirstVisible();
     }
   }
@@ -135,7 +137,7 @@ class Spotlight {
         this.next(nextNode.id);
       }
     } catch (err) {
-      console.warn(err);
+      DEBUG && console.warn(err);
 
       // this.setFirstVisible();
     }
@@ -264,7 +266,7 @@ class EdamSelect {
     } else {
       searchKeys = ['2', '3', '4'];
     }
-    console.time('Fuse init');
+    DEBUG && console.time('Fuse init');
     this.fuse = new Fuse(this.data, {
       keys: searchKeys,
       shouldSort: true,
@@ -275,7 +277,7 @@ class EdamSelect {
       maxPatternLength: 32,
       minMatchCharLength: 1
     });
-    console.timeEnd('Fuse init');
+    DEBUG && console.timeEnd('Fuse init');
 
     // Thingie for search debouncing
     this.timeout = null;
@@ -294,7 +296,32 @@ class EdamSelect {
     this.el = this.generateEdamSelectView();
     document.querySelector(sel).appendChild(this.el);
 
+
+    // this.preselected = params.preselected;
+
+    if (params.preselected) {
+      params.preselected.forEach((id) => {
+        let term = this.edam.data[this.edam.dataIndex()[id]];
+
+        term.selected = true;
+
+        let tree = { // dummy term
+          id: this.id,
+          struct: [null, null, null, null], // dummy struct
+          term: term,
+        };
+
+        let event = new CustomEvent('edam:' + this.id + ':select', {
+          detail: tree,
+        });
+        document.dispatchEvent(event);
+
+      });
+    }
+
     this.init();
+
+
   }
 
   resetChanges() {
@@ -340,7 +367,7 @@ class EdamSelect {
   }
 
   init() {
-    console.time('Tree rendering');
+    DEBUG && console.time('Tree rendering');
 
     this.setReset();
 
@@ -385,7 +412,7 @@ class EdamSelect {
 
     this.scrollAfterUpDown();
 
-    console.timeEnd('Tree rendering');
+    DEBUG && console.timeEnd('Tree rendering');
   }
 
   focusInput() {
@@ -739,9 +766,11 @@ class EdamSelect {
         input.value = '';
         input.disabled = 'disabled';
         this.filter(termIds);
+        this.focusMenu();
       } else {
         input.disabled = '';
         this.filterLogic();
+        input.focus();
         // TODO: method to encapsulate the complex logic in
       }
     };
@@ -790,9 +819,9 @@ class EdamSelect {
 
       this.edam.data[this.edam.dataIndex()[e.detail.termId]].selected = false;
 
-      if (e.detail.active) {
+      // if (e.detail.active) {
         checkIfFilteringIsNeeded();
-      }
+      // }
 
       renderTags();
       recalculateInput();
@@ -839,7 +868,7 @@ class EdamSelect {
           }
         }
       } else if (e.keyCode === 32 || e.keyCode === 13) { // space or return
-        if (this.focused === 2) {
+        if (this.focused === 2 || input.value.length === 0) {
           e.preventDefault();
           let treeMenu = this.treeNodes[this.spotlight.spotlight];
           if (!treeMenu.selected) {
@@ -954,7 +983,7 @@ class EdamSelect {
   searchForReal(e) {
     clearTimeout(this.timeout);
     this.timeout = setTimeout(() => {
-      console.time('Search');
+      DEBUG && console.time('Search');
       this.disclosureResults = [];
       this.searchResults = [];
 
@@ -968,14 +997,14 @@ class EdamSelect {
 
       this.disclosureResults = [...new Set(this.disclosureResults)];
 
-      console.log(this.fuseResults);
-      console.log(this.searchResults);
-      console.log(this.disclosureResults);
+      DEBUG && console.log(this.fuseResults);
+      DEBUG && console.log(this.searchResults);
+      DEBUG && console.log(this.disclosureResults);
 
       let event = new Event('edam:' + this.id + ':status');
       document.dispatchEvent(event);
 
-      console.timeEnd('Search');
+      DEBUG && console.timeEnd('Search');
     }, 500);
   }
 
@@ -991,8 +1020,8 @@ class EdamSelect {
 
     this.disclosureResults = [...new Set(this.disclosureResults)];
 
-    console.log(this.searchResults);
-    console.log(this.disclosureResults);
+    DEBUG && console.log(this.searchResults);
+    DEBUG && console.log(this.disclosureResults);
 
     let event = new Event('edam:' + this.id + ':status');
     document.dispatchEvent(event);
@@ -1495,7 +1524,7 @@ class TreeMenu {
   }
 
   disclose() {
-    console.time('Disclose');
+    DEBUG && console.time('Disclose');
 
     this.triggerChangeEvent();
 
@@ -1532,7 +1561,7 @@ class TreeMenu {
 
     this.destroy();
 
-    console.timeEnd('Disclose');
+    DEBUG && console.timeEnd('Disclose');
   }
 
   isInDisclosureResults() {
@@ -1548,13 +1577,22 @@ class TreeMenu {
   }
 }
 
-console.time('Application');
-let edamSelect = new EdamSelect('#app', {
-  initDepth: 1,
-  type: 'data',
-  inline: false,
-  opened: true,
-  maxHeight: 300,
-  multiselect: true,
-});
-console.timeEnd('Application');
+let root = typeof self == 'object' && self.self === self && self ||
+  typeof global == 'object' && global.global === global && global ||
+  this ||
+  {};
+
+if (typeof exports != 'undefined' && !exports.nodeType) {
+  if (typeof module != 'undefined' && !module.nodeType && module.exports) {
+    exports = module.exports = _;
+  }
+  exports.EdamSelect = EdamSelect;
+} else {
+  root.EdamSelect = EdamSelect;
+}
+
+if (typeof define == 'function' && define.amd) {
+  define('EdamSelect', [], function() {
+    return EdamSelect;
+  });
+}

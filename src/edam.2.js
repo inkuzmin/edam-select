@@ -1,5 +1,7 @@
 import edam from './edam.2.json';
 
+const DEBUG = false;
+
 let data_indexes = {
   data: null,
   format: null,
@@ -16,7 +18,7 @@ let structure_indexes = {
 
 class EDAM {
   constructor(type) {
-    console.time('EDAM init');
+    DEBUG && console.time('EDAM init');
     this.type = type;
 
     this.structure = this.clone(
@@ -26,7 +28,7 @@ class EDAM {
     this.data = this.clone(
       edam.data[type]
     );
-    console.timeEnd('EDAM init');
+    DEBUG && console.timeEnd('EDAM init');
   }
 
   clone(list) {

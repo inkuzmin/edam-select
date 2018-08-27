@@ -251,7 +251,7 @@ class EdamSelect {
 
     this.focused = 0; // 0 - no; 1 - input; 2 - menu
 
-    let threshold = (params.search && params.search.threshold) || 0.2;
+    let threshold = (params.search && params.search.threshold) || 0.0;
     let searchKeys = [];
     if (params.search) {
       if (params.search.label) {
@@ -294,8 +294,12 @@ class EdamSelect {
     this.selected = [];
 
     this.el = this.generateEdamSelectView();
-    document.querySelector(sel).appendChild(this.el);
 
+    if (typeof sel === 'string') {
+      document.querySelector(sel).appendChild(this.el);
+    } else {
+      sel.appendChild(this.el);
+    }
 
     // this.preselected = params.preselected;
 
@@ -645,11 +649,11 @@ class EdamSelect {
     edamSelectContainer.addEventListener('click', (e) => {
       e.stopPropagation();
 
-      if (!this.multiselect) {
-        if (this.selected.length > 0) {
-          return false;
-        }
-      }
+      // if (!this.multiselect) {
+      //   if (this.selected.length > 0) {
+      //     return false;
+      //   }
+      // }
 
       if (!this.opened) {
         this.opened = true;
@@ -790,6 +794,7 @@ class EdamSelect {
 
       if (!this.multiselect) {
        if (this.selected.length > 0) {
+
          this.selected.forEach((tag)=>{
            let event = new CustomEvent('edam:' + this.id + ':unselect', {
              detail: tag,
@@ -1196,6 +1201,22 @@ class TreeMenu {
         checkbox.checked = true;
       }
 
+      labelWrapper.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        let details = labelWrapper.getElementsByClassName(style['details'])[0];
+        if (details) {
+          details.remove();
+        }
+        if (!this.term.selected) {
+          this.triggerSelect();
+        } else {
+          let event = new CustomEvent('edam:' + this.id + ':unselect', {
+            detail: new Tag(this),
+          });
+          document.dispatchEvent(event);
+        }
+      });
+
       // to save operations on access to elements we can add handlers right here?
       labelWrapper.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -1273,28 +1294,31 @@ class TreeMenu {
         this.spotlight.setSpotlight(id);
       });
 
-      checkbox.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (!this.term.selected) {
-          this.triggerSelect();
-        } else {
-          let event = new CustomEvent('edam:' + this.id + ':unselect', {
-            detail: new Tag(this),
-          });
-          document.dispatchEvent(event);
-        }
-      });
-      checkbox.addEventListener('change', (e) => {
-        e.stopPropagation();
-        // if (!this.term.selected) {
-        //   this.triggerSelect();
-        // } else {
-        //   let event = new CustomEvent('edam:' + this.id + ':unselect', {
-        //     detail: new Tag(this),
-        //   });
-        //   document.dispatchEvent(event);
-        // }
-      });
+      if (!this.multiselect) {
+        checkbox.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (!this.term.selected) {
+            this.triggerSelect();
+          } else {
+            let event = new CustomEvent('edam:' + this.id + ':unselect', {
+              detail: new Tag(this),
+            });
+            document.dispatchEvent(event);
+          }
+        });
+      } else {
+        checkbox.addEventListener('change', (e) => {
+          e.stopPropagation();
+          if (!this.term.selected) {
+            this.triggerSelect();
+          } else {
+            let event = new CustomEvent('edam:' + this.id + ':unselect', {
+              detail: new Tag(this),
+            });
+            document.dispatchEvent(event);
+          }
+        });
+      }
 
       // styles go here for the same reason
       labelIndent.style.marginLeft = (this.depth - 0.5) + 'em';

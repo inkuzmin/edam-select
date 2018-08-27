@@ -7,33 +7,36 @@
     <style>
       body {
         width: 500px;
-        margin: 1000px auto;
+        margin: 100px auto;
         padding: 50px;
         font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
       }
     </style>
   </head>
   <body>
-    <input type="text" />
 
     <div id="app">
     </div>
 
-    <input type="text" />
 
     <script src="./dist/build.js"></script>
-
+<div>test</div>
     <script>
-
       console.time('Application');
       let edamSelect = new EdamSelect('#app', {
         initDepth: 1,
         type: 'data',
         inline: false,
         opened: true,
-        maxHeight: 300,
-        multiselect: true,
-//        preselected: [938]
+//        maxHeight: 500,
+        multiselect: false,
+//        search: {
+//          label: true,
+//          synonyms: true,
+//          definitions: true,
+//          threshold: 0.5
+//        },
+//        preselected: [1441]
       });
       console.timeEnd('Application');
     </script>

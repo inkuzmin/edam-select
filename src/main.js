@@ -1016,7 +1016,7 @@ class EdamSelect {
         }
 
       this.hideLoader();
-      // this.resetChanges();
+      this.resetChanges();
       this.init();
     };
 

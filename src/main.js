@@ -137,9 +137,7 @@ class Spotlight {
         this.next(nextNode.id);
       }
     } catch (err) {
-      DEBUG && console.warn(err);
-
-      // this.setFirstVisible();
+      console.log(err);
     }
   }
 
@@ -238,8 +236,17 @@ class EdamSelect {
     this.dataIndex = this.edam.dataIndex();
     this.structureIndex = this.edam.structureIndex();
 
-    this.inline = params.inline;
+    this.inline = !params.inline; // that's due to...
     this.opened = params.opened;
+
+    if (!params.inline) {
+      this.opened = false;
+      this.closeOnSelect = true;
+    }
+
+    if (params.closeOnSelect) {
+      this.closeOnSelect = params.closeOnSelect;
+    }
 
     this.maxHeight = params.maxHeight;
 
@@ -251,7 +258,7 @@ class EdamSelect {
 
     this.focused = 0; // 0 - no; 1 - input; 2 - menu
 
-    let threshold = (params.search && params.search.threshold) || 0.0;
+    let threshold = (params.search && params.search.threshold) || 0.1;
     let searchKeys = [];
     if (params.search) {
       if (params.search.label) {
@@ -340,11 +347,11 @@ class EdamSelect {
   }
 
   displayNothingFound() {
-    document.getElementsByClassName(style['edam-nothing-found'])[0].style.display = 'block';
+    this.el.getElementsByClassName(style['edam-nothing-found'])[0].style.display = 'block';
   }
 
   hideNothingFound() {
-    document.getElementsByClassName(style['edam-nothing-found'])[0].style.display = 'none';
+    this.el.getElementsByClassName(style['edam-nothing-found'])[0].style.display = 'none';
   }
 
   broadcast() {
@@ -424,18 +431,22 @@ class EdamSelect {
 
     this.el.getElementsByClassName(style['edam-select-container'])[0].classList.add(style['input-focus']);
     // this.el.getElementsByTagName('input')[0].focus();
+    this.el.getElementsByClassName(style['edam-select-menu'])[0].style.zIndex = 2;
+
     this.focused = 1;
   }
 
   blurInput() {
     this.el.getElementsByClassName(style['edam-select-container'])[0].classList.remove(style['input-focus']);
     // this.el.getElementsByTagName('input')[0].blur();
+    this.el.getElementsByClassName(style['edam-select-menu'])[0].style.zIndex = 1;
     this.focused = 0;
   }
 
   focusMenu() {
     this.el.getElementsByClassName(style['edam-select-container'])[0].classList.remove(style['input-focus']);
     this.el.getElementsByTagName('input')[0].blur();
+    this.el.getElementsByClassName(style['edam-select-menu'])[0].style.zIndex = 2;
 
     this.focused = 2;
 
@@ -445,6 +456,7 @@ class EdamSelect {
 
   blurMenu() {
     this.el.getElementsByClassName(style['edam-select-menu'])[0].classList.remove(style['menu-focus']);
+    this.el.getElementsByClassName(style['edam-select-menu'])[0].style.zIndex = 1;
     this.focused = 0;
 
     if (this.inline && this.opened && this.focused === 0) {
@@ -516,6 +528,23 @@ class EdamSelect {
     }
   }
 
+  triggerOpen() {
+    let event = new CustomEvent('edam:open', {
+      detail: {
+        edamId: this.id,
+      },
+    });
+    document.dispatchEvent(event);
+  }
+
+  open() {
+    this.opened = true;
+    this.el.classList.add(style['is-open']);
+    this.el.getElementsByTagName('input')[0].focus();
+    this.triggerOpen();
+    this.init();
+  }
+
   generateEdamSelectView() {
     let edamSelectWrap = document.createElement('div');
     edamSelectWrap.className = style['edam-select-wrap'];
@@ -548,6 +577,7 @@ class EdamSelect {
 
     if (this.maxHeight) {
       edamSelectMenu.style.maxHeight = this.maxHeight + "px";
+      edamSelectMenu.style.overflowY = 'scroll';
     }
 
     let edamSelectRemove = document.createElement('div');
@@ -634,6 +664,7 @@ class EdamSelect {
 
         this.spotlight.reset();
 
+        this.broadcast();
         this.init();
       } else if (edamSelectRemove.classList.contains(style['clear-text'])) {
         input.value = '';
@@ -646,20 +677,27 @@ class EdamSelect {
       edamSelectWrap.classList.add(style['is-open']);
     }
 
+    document.addEventListener('edam:open', (e) => {
+      if (e.detail.edamId !== this.id) {
+        edamSelectWrap.classList.remove(style['is-open']);
+        this.opened = false;
+        input.blur();
+        this.init();
+      }
+    });
+
     edamSelectContainer.addEventListener('click', (e) => {
       e.stopPropagation();
 
-      // if (!this.multiselect) {
-      //   if (this.selected.length > 0) {
-      //     return false;
-      //   }
-      // }
 
       if (!this.opened) {
-        this.opened = true;
-        edamSelectWrap.classList.add(style['is-open']);
-        input.focus();
-        this.init();
+        // this.opened = true;
+        // edamSelectWrap.classList.add(style['is-open']);
+        // input.focus();
+        // this.triggerOpen();
+        // this.init();
+
+        this.open();
       } else {
         input.focus();
       }
@@ -667,10 +705,13 @@ class EdamSelect {
 
     input.addEventListener('focus', (e) => {
       if (!this.opened) {
-        this.opened = true;
-        edamSelectWrap.classList.add(style['is-open']);
-        input.focus();
-        this.init();
+        // this.opened = true;
+        // edamSelectWrap.classList.add(style['is-open']);
+        // input.focus();
+        // this.triggerOpen();
+        // this.init();
+
+        this.open();
       }
       this.focusInput();
     });
@@ -690,13 +731,17 @@ class EdamSelect {
       if (this.opened) {
         edamSelectWrap.classList.remove(style['is-open']);
         this.opened = false;
-        input.blur();
+        // input.blur();
         this.init();
+        this.focusInput();
       } else {
-        edamSelectWrap.classList.add(style['is-open']);
-        this.opened = true;
-        input.focus();
-        this.init();
+        // edamSelectWrap.classList.add(style['is-open']);
+        // this.opened = true;
+        // input.focus();
+        // this.init();
+        // this.triggerOpen();
+
+        this.open();
       }
     });
 
@@ -711,6 +756,8 @@ class EdamSelect {
         input.blur();
         this.focusMenu();
       }
+    }, {
+      passive: true
     });
 
     let recalculateInput = () => {
@@ -748,6 +795,8 @@ class EdamSelect {
 
     document.addEventListener(`edam:${this.id}:change`, (e) => {
       this.changed.push(e.detail);
+
+      DEBUG && console.log(this.changed);
       this.setReset();
     });
 
@@ -789,18 +838,23 @@ class EdamSelect {
       });
     };
 
+
+    let unselect = true;
     document.addEventListener(`edam:${this.id}:select`, (e) => {
       let tag = new Tag(e.detail);
 
       if (!this.multiselect) {
        if (this.selected.length > 0) {
-
+         unselect = false;
          this.selected.forEach((tag)=>{
            let event = new CustomEvent('edam:' + this.id + ':unselect', {
              detail: tag,
            });
            document.dispatchEvent(event);
+           this.edam.data[this.edam.dataIndex()[tag.termId]].selected = false;
          });
+         this.selected = [];
+        unselect = true;
        }
       }
 
@@ -814,110 +868,135 @@ class EdamSelect {
 
       this.broadcast();
 
+      if (this.closeOnSelect) {
+        input.value = '';
+        this.filterLogic();
+        edamSelectWrap.classList.remove(style['is-open']);
+        this.opened = false;
+        this.init();
+        this.focusInput();
+      }
+
       // this.checkMultiselect();
     });
 
-    document.addEventListener(`edam:${this.id}:unselect`, (e) => {
-      this.selected = this.selected.filter((t) => {
-        return t.termId !== e.detail.termId;
-      });
-
-      this.edam.data[this.edam.dataIndex()[e.detail.termId]].selected = false;
-
-      // if (e.detail.active) {
-        checkIfFilteringIsNeeded();
-      // }
-
-      renderTags();
+    window.addEventListener('resize', () => {
       recalculateInput();
+    });
 
-      this.broadcast();
+    document.addEventListener(`edam:${this.id}:unselect`, (e) => {
+      if (unselect) {
+        this.selected = this.selected.filter((t) => {
+          return t.termId !== e.detail.termId;
+        });
+
+        this.edam.data[this.edam.dataIndex()[e.detail.termId]].selected = false;
+
+        // if (e.detail.active) {
+        checkIfFilteringIsNeeded();
+        // }
+
+        renderTags();
+        recalculateInput();
+
+        this.broadcast();
+      }
 
       // this.checkMultiselect();
     });
 
 
     document.addEventListener('keydown', (e) => {
-      if (e.keyCode === 40) { // down
-        if (this.focused) {
-          e.preventDefault();
-          input.blur();
-          this.focusMenu();
-          this.spotlight.next();
-
-          this.scrollAfterUpDown();
-        }
-      } else if (e.keyCode === 38) { // up
-        if (this.focused) {
-          e.preventDefault();
-          input.blur();
-          this.focusMenu();
-          this.spotlight.prev();
-
-          this.scrollAfterUpDown();
-        }
-      } else if (e.keyCode === 39) { // right
-        if (this.focused === 2) {
-          e.preventDefault();
-          if (!this.treeNodes[this.spotlight.spotlight].isDisclosed()) {
-            this.treeNodes[this.spotlight.spotlight].disclose();
-
-            this.scrollAfterDisclose();
-          }
-        }
-      } else if (e.keyCode === 37) { // left 37
-        if (this.focused === 2) {
-          e.preventDefault();
-          if (this.treeNodes[this.spotlight.spotlight].isDisclosed()) {
-            this.treeNodes[this.spotlight.spotlight].disclose();
-          }
-        }
-      } else if (e.keyCode === 32 || e.keyCode === 13) { // space or return
-        if (this.focused === 2 || input.value.length === 0) {
-          e.preventDefault();
-          let treeMenu = this.treeNodes[this.spotlight.spotlight];
-          if (!treeMenu.selected) {
-            treeMenu.triggerSelect();
-          } else {
-            let event = new CustomEvent('edam:' + this.id + ':unselect', {
-              detail: new Tag(treeMenu),
-            });
-            document.dispatchEvent(event);
-          }
-        }
-      } else if (e.keyCode === 8) { // backspace
-        input.focus();
-        if (input.value.length === 0) {
-          let tag = this.selected.pop();
-          if (tag) {
-            let event = new CustomEvent('edam:' + this.id + ':unselect', {
-              detail: tag,
-            });
-            document.dispatchEvent(event);
-          }
-        }
-      } else if (e.keyCode === 9) { // tab
-        if (this.focused === 1) {
+      if (this.focused) {
+        if (e.keyCode === 40) { // down
           if (this.opened) {
-            e.preventDefault();
-            this.focusMenu();
+            if (this.focused) {
+              e.preventDefault();
+              input.blur();
+              this.focusMenu();
+              this.spotlight.next();
+
+              this.scrollAfterUpDown();
+            }
           }
-        } else if (this.focused === 2) {
-          this.blurMenu();
-        }
-      } else if (e.keyCode === 27) { // esc
-        if (this.focused === 1) {
-          input.blur();
-          if (this.inline) {
+        } else if (e.keyCode === 38) { // up
+          if (this.opened) {
+            if (this.focused) {
+              e.preventDefault();
+              input.blur();
+              this.focusMenu();
+              this.spotlight.prev();
+
+              this.scrollAfterUpDown();
+            }
+          }
+        } else if (e.keyCode === 39) { // right
+          if (this.focused === 2) {
+            e.preventDefault();
+            if (!this.treeNodes[this.spotlight.spotlight].isDisclosed()) {
+              this.treeNodes[this.spotlight.spotlight].disclose();
+
+              this.scrollAfterDisclose();
+            }
+          }
+        } else if (e.keyCode === 37) { // left 37
+          if (this.focused === 2) {
+            e.preventDefault();
+            if (this.treeNodes[this.spotlight.spotlight].isDisclosed()) {
+              this.treeNodes[this.spotlight.spotlight].disclose();
+            }
+          }
+        } else if (e.keyCode === 32 || e.keyCode === 13) { // space or return
+          if (this.focused === 2 || input.value.length === 0) {
+            e.preventDefault();
+            let treeMenu = this.treeNodes[this.spotlight.spotlight];
+            if (!treeMenu.selected) {
+              treeMenu.triggerSelect();
+            } else {
+              let event = new CustomEvent('edam:' + this.id + ':unselect', {
+                detail: new Tag(treeMenu),
+              });
+              document.dispatchEvent(event);
+            }
+          }
+        } else if (e.keyCode === 8) { // backspace
+          input.focus();
+          if (input.value.length === 0) {
+            let tag = this.selected.pop();
+            if (tag) {
+              let event = new CustomEvent('edam:' + this.id + ':unselect', {
+                detail: tag,
+              });
+              document.dispatchEvent(event);
+            }
+          }
+        } else if (e.keyCode === 9) { // tab
+          if (this.focused === 1) {
+            if (this.opened) {
+              e.preventDefault();
+              this.focusMenu();
+            } else {
+              e.preventDefault();
+              this.open();
+              this.focusMenu();
+            }
+          } else if (this.focused === 2) {
             this.blurMenu();
           }
-        } else if (this.focused === 2) {
+        } else if (e.keyCode === 27) { // esc
+          if (this.focused === 1) {
+            input.blur();
+            if (this.inline) {
+              this.blurMenu();
+            }
+          } else if (this.focused === 2) {
+            input.focus();
+          }
+
+          // think what to do
+        } else {
           input.focus();
         }
-
-        // think what to do
-      } else {
-        input.focus();
       }
     });
 
@@ -937,6 +1016,7 @@ class EdamSelect {
         }
 
       this.hideLoader();
+      // this.resetChanges();
       this.init();
     };
 
@@ -951,6 +1031,7 @@ class EdamSelect {
     } else {
       clearTimeout(this.timeout);
       // this.clearSearch();
+      // this.resetChanges();
       this.filterLogic();
     }
   }
@@ -1101,9 +1182,14 @@ class TreeMenu {
     return this.el;
   }
 
-  triggerChangeEvent() {
+  triggerChangeEvent(rel_pid) {
+    if (rel_pid) {
+      rel_pid = rel_pid;
+    } else {
+      rel_pid = this.struct[REL_PID];
+    }
     let event = new CustomEvent('edam:' + this.id + ':change', {
-      detail: this.struct[REL_PID]
+      detail: rel_pid
     });
     document.dispatchEvent(event);
   }
@@ -1560,6 +1646,7 @@ class TreeMenu {
       let i, l = this.struct[CHILDREN].length; // children
       for (i = 0; i < l; i += 1) {
         this.edam.structure[this.edam.structureIndex()[this.struct[CHILDREN][i]]]['shown'] = true;
+        this.triggerChangeEvent(this.struct[CHILDREN][i]);
       }
     }
 

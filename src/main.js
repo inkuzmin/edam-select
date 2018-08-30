@@ -33,17 +33,22 @@ class Spotlight {
   }
 
   setSpotlight(uid) {
-    if (this.spotlight) {
-      document.getElementById(this.spotlight)
-        .getElementsByClassName(style['label-wrapper']) &&
+    try {
+      if (this.spotlight) {
+        document.getElementById(this.spotlight)
+          .getElementsByClassName(style['label-wrapper']) &&
+        document.getElementById(this.spotlight)
+          .getElementsByClassName(style['label-wrapper'])[0]
+          .classList.remove(style['spotlight']);
+      }
+      this.spotlight = uid;
       document.getElementById(this.spotlight)
         .getElementsByClassName(style['label-wrapper'])[0]
-        .classList.remove(style['spotlight']);
+        .classList.add(style['spotlight']);
+    } catch (err) {
+      DEBUG && console.log(err);
+      this.spotlight = undefined;
     }
-    this.spotlight = uid;
-    document.getElementById(this.spotlight)
-      .getElementsByClassName(style['label-wrapper'])[0]
-      .classList.add(style['spotlight']);
   }
 
   getSpotlightId() {
@@ -342,6 +347,19 @@ class EdamSelect {
 
   }
 
+  getSubRoot(term) {
+    let relId = term[REL_FID][0]; // get first relation corresp to term - actually there could be more then one
+    let struct = this.structure[this.structureIndex[relId]];
+    let prevStruct = null;
+
+    while (struct[PARENT] !== null) {
+      prevStruct = struct;
+      struct = this.structure[this.structureIndex[struct[PARENT]]];
+    }
+
+    return this.data[this.dataIndex[prevStruct[TERM_FID]]];
+  }
+
   resetChanges() {
     let i, l = this.changed.length;
     for (i = 0; i < l; i += 1) {
@@ -368,7 +386,10 @@ class EdamSelect {
         id: this.id,
         type: this.type,
         selected: this.selected.map((tag) => {
-          return this.edam.data[this.edam.dataIndex()[tag.termId]];
+          return {
+            subroot: this.getSubRoot(this.edam.data[this.edam.dataIndex()[tag.termId]]),
+            ...this.edam.data[this.edam.dataIndex()[tag.termId]]
+          };
         })
       },
     });
@@ -866,7 +887,7 @@ class EdamSelect {
 
       if (this.closeOnSelect) {
         input.value = '';
-        this.filterLogic();
+        this.filterLogic(true);
         edamSelectWrap.classList.remove(style['is-open']);
         this.opened = false;
         this.init();
@@ -1000,7 +1021,7 @@ class EdamSelect {
       }
     });
 
-    this.filterLogic = () => {
+    this.filterLogic = (preventReset) => {
       if (this.searchResults.length === 0) {
         if (input.value.length === 0) {
           this.filtered = undefined;
@@ -1016,7 +1037,9 @@ class EdamSelect {
         }
 
       this.hideLoader();
-      this.resetChanges();
+      if (!preventReset) {
+        this.resetChanges();
+      }
       this.init();
     };
 

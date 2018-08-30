@@ -205,6 +205,10 @@ class Tag {
 }
 
 class EdamSelect {
+  static getTermById(type, internalId) {
+    return EDAM.getTermById(type, internalId);
+  }
+
   constructor(sel, params) {
     this.id = ++EdamSelect.id;
 

@@ -17,6 +17,24 @@ let structure_indexes = {
 };
 
 class EDAM {
+
+  static getTermById(type, internalId) {
+    if (!!data_indexes[type]) {
+      // if cached do nothing
+    } else {
+      // otherwise build map
+      let map = {};
+      let a = edam.data[type];
+      a.map(function (o, i) {
+        map[o[0]] = i;
+      });
+      data_indexes[type] = map;
+    }
+
+
+    return edam.data[type][data_indexes[type][internalId]];
+  }
+
   constructor(type) {
     DEBUG && console.time('EDAM init');
     this.type = type;

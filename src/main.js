@@ -247,7 +247,9 @@ class EdamSelect {
 
     if (!params.inline) {
       this.opened = false;
-      this.closeOnSelect = true;
+      if (!params.multiselect) {
+        this.closeOnSelect = true;
+      }
     }
 
     if (params.closeOnSelect) {
@@ -583,7 +585,7 @@ class EdamSelect {
 
     if (this.maxHeight) {
       edamSelectMenu.style.maxHeight = this.maxHeight + "px";
-      edamSelectMenu.style.overflowY = 'scroll';
+      edamSelectMenu.style.overflowY = 'auto';
     }
 
     let edamSelectRemove = document.createElement('div');
@@ -687,7 +689,10 @@ class EdamSelect {
       if (e.detail.edamId !== this.id) {
         edamSelectWrap.classList.remove(style['is-open']);
         this.opened = false;
-        input.blur();
+        // input.blur();
+        this.blurInput();
+        this.blurMenu();
+
         this.init();
       }
     });
@@ -732,6 +737,8 @@ class EdamSelect {
       } else {
         this.open();
       }
+      e.preventDefault();
+      return false;
     });
 
     edamSelectMenuWrap.addEventListener('mousedown', () => {
@@ -1386,6 +1393,9 @@ class TreeMenu {
           }
         });
       } else {
+        checkbox.addEventListener('click', (e) => {
+          e.stopPropagation();
+        });
         checkbox.addEventListener('change', (e) => {
           e.stopPropagation();
           if (!this.term.selected) {

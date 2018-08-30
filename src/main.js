@@ -226,6 +226,8 @@ class EdamSelect {
       this.initDepth = params.initDepth;
     }
 
+    this.name = params.name || `edam-${this.id}`;
+
     this.edam = new EDAM(this.type);
 
     this.spotlight = new Spotlight(this.id);
@@ -360,8 +362,9 @@ class EdamSelect {
   broadcast() {
     let event = new CustomEvent('edam:change', {
       detail: {
-        edamId: this.id,
-        edamType: this.type,
+        name: this.name,
+        id: this.id,
+        type: this.type,
         selected: this.selected.map((tag) => {
           return this.edam.data[this.edam.dataIndex()[tag.termId]];
         })

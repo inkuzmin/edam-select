@@ -308,8 +308,6 @@ class EdamSelect {
       sel.appendChild(this.el);
     }
 
-    this.preselected = params.preselected;
-
     if (params.preselected) {
       params.preselected.forEach((id) => {
         let term = this.edam.data[this.edam.dataIndex()[id]];
@@ -320,6 +318,7 @@ class EdamSelect {
           id: this.id,
           struct: [null, null, null, null], // dummy struct
           term: term,
+          preventFocus: true,
         };
 
         let event = new CustomEvent('edam:' + this.id + ':select', {
@@ -691,12 +690,6 @@ class EdamSelect {
 
 
       if (!this.opened) {
-        // this.opened = true;
-        // edamSelectWrap.classList.add(style['is-open']);
-        // input.focus();
-        // this.triggerOpen();
-        // this.init();
-
         this.open();
       } else {
         input.focus();
@@ -735,12 +728,6 @@ class EdamSelect {
         this.init();
         this.focusInput();
       } else {
-        // edamSelectWrap.classList.add(style['is-open']);
-        // this.opened = true;
-        // input.focus();
-        // this.init();
-        // this.triggerOpen();
-
         this.open();
       }
     });
@@ -875,14 +862,13 @@ class EdamSelect {
         this.opened = false;
         this.init();
 
-        if (this.preselected.length === 0) {
-          this.focusInput();
+
+        if (e.detail.preventFocus) {
+          // do nothing
         } else {
-          this.preselected = [];
+          this.focusInput();
         }
       }
-
-      // this.checkMultiselect();
     });
 
     window.addEventListener('resize', () => {

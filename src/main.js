@@ -698,12 +698,6 @@ class EdamSelect {
 
     input.addEventListener('focus', (e) => {
       if (!this.opened) {
-        // this.opened = true;
-        // edamSelectWrap.classList.add(style['is-open']);
-        // input.focus();
-        // this.triggerOpen();
-        // this.init();
-
         this.open();
       }
       this.focusInput();
@@ -712,14 +706,12 @@ class EdamSelect {
       this.blurInput();
     });
 
-    // if (this.inline) {
-      document.addEventListener('click', (e) => {
-        if (this.focused === 1) {
-          this.blurInput();
-        }
-        this.blurMenu();
-      });
-    // }
+    document.addEventListener('click', (e) => {
+      if (this.focused === 1) {
+        this.blurInput();
+      }
+      this.blurMenu();
+    });
 
     // event handlers will be here
     edamSelectArrowWrap.addEventListener('click', (e) => {

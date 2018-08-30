@@ -308,7 +308,7 @@ class EdamSelect {
       sel.appendChild(this.el);
     }
 
-    // this.preselected = params.preselected;
+    this.preselected = params.preselected;
 
     if (params.preselected) {
       params.preselected.forEach((id) => {
@@ -874,7 +874,12 @@ class EdamSelect {
         edamSelectWrap.classList.remove(style['is-open']);
         this.opened = false;
         this.init();
-        this.focusInput();
+
+        if (this.preselected.length === 0) {
+          this.focusInput();
+        } else {
+          this.preselected = [];
+        }
       }
 
       // this.checkMultiselect();

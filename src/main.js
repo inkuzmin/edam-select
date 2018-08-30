@@ -714,6 +714,9 @@ class EdamSelect {
 
     // if (this.inline) {
       document.addEventListener('click', (e) => {
+        if (this.focused === 1) {
+          this.blurInput();
+        }
         this.blurMenu();
       });
     // }

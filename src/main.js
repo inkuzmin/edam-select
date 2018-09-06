@@ -1447,6 +1447,7 @@ class TreeMenu {
         labelWrapper.addEventListener('click', (e) => {
           // labelWrapper.classList.add(style['spotlight']);
           e.stopPropagation();
+          e.preventDefault();
           if (!this.term.selected) {
             this.triggerSelect();
           } else {

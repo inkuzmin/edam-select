@@ -20,7 +20,7 @@
 
     <div id="app">
     </div>
-
+    <br><br><br>
     <div id="app2">
     </div>
 
@@ -29,34 +29,19 @@
     <script>
       console.time('Application');
       let edamSelect = new EdamSelect('#app', {
-        initDepth: 1,
-        type: 'data',
+        name: '12345',
+        type: 'operation',
         inline: false,
-        maxHeight: 500,
-        multiselect: false,
-//        search: {
-//          label: true,
-//          synonyms: true,
-//          definitions: true,
-//          threshold: 0.5
-//        },
-        preselected: [66],
-        checkboxes: true,
+        maxHeight: 300,
+        // multiselect: false,
       });
 
       let edamSelect2 = new EdamSelect('#app2', {
-        initDepth: 1,
+        name: '123',
         type: 'data',
         inline: false,
-        maxHeight: 500,
-        multiselect: true,
-//        search: {
-//          label: true,
-//          synonyms: true,
-//          definitions: true,
-//          threshold: 0.5
-//        },
-//        preselected: [1441]
+        maxHeight: 300,
+        multiselect: false,
       });
 
 

@@ -268,6 +268,7 @@ class EdamSelect {
     this.filtered = undefined;
 
     this.multiselect = params.multiselect;
+    this.checkboxes = params.checkboxes;
 
     this.focused = 0; // 0 - no; 1 - input; 2 - menu
 
@@ -435,6 +436,7 @@ class EdamSelect {
         treeNodes: this.treeNodes,
         filtered: this.filtered,
         multiselect: this.multiselect,
+        checkboxes: this.checkboxes,
         // changed: this.changed -- no, this is child - parent channel, it should be impl. with events...
       });
 
@@ -1191,6 +1193,8 @@ class TreeMenu {
     this.spotlight = params.spotlight;
     this.treeNodes = params.treeNodes;
 
+    this.checkboxes = params.checkboxes;
+
     this.filtered = params.filtered;
 
     this.struct = struct;
@@ -1287,48 +1291,28 @@ class TreeMenu {
 
       labelIndent.appendChild(triangleWrap);
       labelIndent.appendChild(term);
-      // labelIndent.appendChild(info);
+      labelIndent.appendChild(info);
 
-      let checkbox = document.createElement('input');
-      if (this.multiselect) {
-        checkbox.type = 'checkbox';
-      } else {
-        checkbox.type = 'radio';
+      let checkbox;
+      if (this.checkboxes) {
+        checkbox = document.createElement('input');
+        if (this.multiselect) {
+          checkbox.type = 'checkbox';
+        } else {
+          checkbox.type = 'radio';
+        }
+        checkbox.className = style['checkbox'];
+        checkbox.tabIndex = -1;
+
+        labelIndent.appendChild(checkbox);
       }
-      checkbox.className = style['checkbox'];
-      checkbox.tabIndex = -1;
-
-      labelIndent.appendChild(checkbox);
 
       triangleWrap.appendChild(triangle);
 
       let text = document.createTextNode(this.term[LABEL]);
       term.appendChild(text);
 
-      if (this.term['selected']) {
-        term.classList.add(style['selected']);
-        checkbox.checked = true;
-      }
-
-      labelWrapper.addEventListener('dblclick', (e) => {
-        e.stopPropagation();
-        let details = labelWrapper.getElementsByClassName(style['details'])[0];
-        if (details) {
-          details.remove();
-        }
-        if (!this.term.selected) {
-          this.triggerSelect();
-        } else {
-          let event = new CustomEvent('edam:' + this.id + ':unselect', {
-            detail: new Tag(this),
-          });
-          document.dispatchEvent(event);
-        }
-      });
-
-      // to save operations on access to elements we can add handlers right here?
-      labelWrapper.addEventListener('click', (e) => {
-        e.stopPropagation();
+      let showDetails = () => {
         let details = labelWrapper.getElementsByClassName(style['details'])[0];
         if (details) {
           details.remove();
@@ -1391,21 +1375,27 @@ class TreeMenu {
             details.classList.add(style['show']);
           }, 10);
         }
-      });
+      };
 
-      triangleWrap.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.disclose();
-      });
+      if (this.term['selected']) {
+        term.classList.add(style['selected']);
+        if (this.checkboxes) {
+          checkbox.checked = true;
+        }
+      }
 
       labelWrapper.addEventListener('mouseover', () => {
         // labelWrapper.classList.add(style['spotlight']);
         this.spotlight.setSpotlight(id);
       });
 
-      if (!this.multiselect) {
-        checkbox.addEventListener('click', (e) => {
+      if (this.checkboxes) {
+        labelWrapper.addEventListener('dblclick', (e) => {
           e.stopPropagation();
+          let details = labelWrapper.getElementsByClassName(style['details'])[0];
+          if (details) {
+            details.remove();
+          }
           if (!this.term.selected) {
             this.triggerSelect();
           } else {
@@ -1415,11 +1405,43 @@ class TreeMenu {
             document.dispatchEvent(event);
           }
         });
+
+        labelWrapper.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showDetails();
+        });
+
+        if (!this.multiselect) {
+          checkbox.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!this.term.selected) {
+              this.triggerSelect();
+            } else {
+              let event = new CustomEvent('edam:' + this.id + ':unselect', {
+                detail: new Tag(this),
+              });
+              document.dispatchEvent(event);
+            }
+          });
+        } else {
+          checkbox.addEventListener('click', (e) => {
+            e.stopPropagation();
+          });
+          checkbox.addEventListener('change', (e) => {
+            e.stopPropagation();
+            if (!this.term.selected) {
+              this.triggerSelect();
+            } else {
+              let event = new CustomEvent('edam:' + this.id + ':unselect', {
+                detail: new Tag(this),
+              });
+              document.dispatchEvent(event);
+            }
+          });
+        }
       } else {
-        checkbox.addEventListener('click', (e) => {
-          e.stopPropagation();
-        });
-        checkbox.addEventListener('change', (e) => {
+        labelWrapper.addEventListener('click', (e) => {
+          // labelWrapper.classList.add(style['spotlight']);
           e.stopPropagation();
           if (!this.term.selected) {
             this.triggerSelect();
@@ -1429,8 +1451,18 @@ class TreeMenu {
             });
             document.dispatchEvent(event);
           }
+        });
+
+        info.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showDetails();
         });
       }
+
+      triangleWrap.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.disclose();
+      });
 
       // styles go here for the same reason
       labelIndent.style.marginLeft = (this.depth - 0.5) + 'em';
@@ -1528,6 +1560,7 @@ class TreeMenu {
           treeNodes: this.treeNodes,
           filtered: this.filtered,
           multiselect: this.multiselect,
+          checkboxes: this.checkboxes,
         }));
       });
     }
@@ -1613,24 +1646,11 @@ class TreeMenu {
     this.selected = true;
 
     this.el.getElementsByClassName(style['term'])[0].classList.add(style['selected']);
-    this.el.getElementsByTagName('input')[0].checked = true;
 
-    // this.el.parentNode.replaceChild(new TreeMenu(this.struct, {
-    //   initDepth: this.initDepth,
-    //   depth: this.depth,
-    //   type: this.type,
-    //   edam: this.edam,
-    //   id: this.id,
-    //   selected: this.selected,
-    //   searchResults: this.searchResults,
-    //   disclosureResults: this.disclosureResults,
-    //   fuseResults: this.fuseResults,
-    //   spotlight: this.spotlight,
-    //   treeNodes: this.treeNodes,
-    //   filtered: this.filtered,
-    // }), this.el);
+    if (this.checkboxes) {
+      this.el.getElementsByTagName('input')[0].checked = true;
+    }
 
-    // this.destroy();
   }
 
   _unselect() {
@@ -1638,24 +1658,10 @@ class TreeMenu {
     this.selected = false;
 
     this.el.getElementsByClassName(style['term'])[0].classList.remove(style['selected']);
-    this.el.getElementsByTagName('input')[0].checked = false;
 
-    // this.el.parentNode.replaceChild(new TreeMenu(this.struct, {
-    //     initDepth: this.initDepth,
-    //     depth: this.depth,
-    //     type: this.type,
-    //     edam: this.edam,
-    //     id: this.id,
-    //     selected: this.selected,
-    //     searchResults: this.searchResults,
-    //     disclosureResults: this.disclosureResults,
-    //     fuseResults: this.fuseResults,
-    //     spotlight: this.spotlight,
-    //     treeNodes: this.treeNodes,
-    //     filtered: this.filtered,
-    // }), this.el);
-
-    // this.destroy();
+    if (this.checkboxes) {
+      this.el.getElementsByTagName('input')[0].checked = false;
+    }
 
   }
 
@@ -1690,6 +1696,7 @@ class TreeMenu {
       treeNodes: this.treeNodes,
       filtered: this.filtered,
       multiselect: this.multiselect,
+      checkboxes: this.checkboxes,
     });
 
     this.el.parentNode.replaceChild(newTree, this.el);

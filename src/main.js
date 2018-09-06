@@ -1320,6 +1320,10 @@ class TreeMenu {
           details = document.createElement('div');
           details.className = style['details'];
 
+          details.addEventListener('click', (e) => {
+            e.stopPropagation();
+          });
+
           let i, l = this.term[DEFINITIONS].length;
           if (l > 0) {
             let definitionsTitle = document.createElement('div');

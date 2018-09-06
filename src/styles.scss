@@ -89,6 +89,9 @@
     width: 100%;
   }
 }
+:local(.edam-select-wrap) * {
+  box-sizing: content-box;
+}
 
 :local(.edam-select-wrap) {
   position: relative;
@@ -393,7 +396,8 @@
     cursor: pointer;
     display: block;
     float: left;
-    width: 19px;
+    //width: 19px;
+    width: 1em;
     height: 23px;
     margin-top: -5px;
     padding-top: 5px;
@@ -403,6 +407,7 @@
     padding-left: 100px;
     left: -100px;
     margin-right: -100px;
+    padding-right: 0.2em;
 
     &:hover {
       :local(.triangle) {
@@ -443,6 +448,7 @@
     padding-right: 8px;
     padding-bottom: 1px;
     top: -3px;
+    cursor: default;
 
     :local(.definitions) {
       border-left: 2px solid #31708f;

@@ -1,5 +1,5 @@
-var path = require('path')
-var webpack = require('webpack')
+var path = require('path');
+var webpack = require('webpack');
 
 process.traceDeprecation = true;
 
@@ -17,7 +17,7 @@ module.exports = {
       {
         test: /\.s(a|c)ss$/,
         loader: [
-          isDevelopment ? 'style-loader' : MiniCssExtractPlugin.loader,
+          'style-loader',
           {
             loader: 'css-loader',
             options: {

@@ -2,6 +2,9 @@
 
 > EDAM selector component
 
+## Documentation and examples
+https://inkuzmin.github.io/edam-select/
+
 ## Build Setup
 
 ``` bash

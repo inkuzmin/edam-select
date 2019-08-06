@@ -10,6 +10,7 @@
     "type": "git",
     "url": "https://github.com/inkuzmin/edam-select.git"
   },
+  "keywords": ["ui", "biojs", "edam"],
   "homepage": "https://inkuzmin.github.io/edam-select/",
   "scripts": {
     "dev": "cross-env NODE_ENV=development webpack-dev-server --open --hot",

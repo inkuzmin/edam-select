@@ -5,9 +5,20 @@
 ## Documentation and examples
 https://inkuzmin.github.io/edam-select/
 
-## Build Setup
+## Usage
+Install the package via NPM:
+```bash
+npm install edam-select
+```
 
-``` bash
+Import in JavaScript:
+```javascript
+import EdamSelect from 'edam-select';
+```
+
+## Development
+
+```bash
 # install dependencies
 npm install
 
@@ -17,3 +28,6 @@ npm run dev
 # build for production with minification
 npm run build
 ```
+
+## License
+MIT

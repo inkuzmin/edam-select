@@ -397,6 +397,15 @@ class EdamSelect {
     document.dispatchEvent(event);
   }
 
+  getSelected() {
+    return this.selected.map((tag) => {
+      return {
+        subroot: this.getSubRoot(this.edam.data[this.edam.dataIndex()[tag.termId]]),
+        ...this.edam.data[this.edam.dataIndex()[tag.termId]]
+      };
+    })
+  }
+
   setReset() {
     if (this.el.getElementsByTagName('input')[0].value.length > 0) {
       this.setClearStatus('text');
@@ -1303,6 +1312,8 @@ class TreeMenu {
         }
         checkbox.className = style['checkbox'];
         checkbox.tabIndex = -1;
+
+        info.style.display = 'none';
 
         labelIndent.appendChild(checkbox);
       }

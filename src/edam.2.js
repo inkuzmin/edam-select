@@ -1,6 +1,6 @@
 import edam from './edam.2.json';
 
-const DEBUG = false;
+const DEBUG = true;
 
 let data_indexes = {
   data: null,
@@ -16,7 +16,56 @@ let structure_indexes = {
   topic: null
 };
 
+let edam_indexes = {
+  data: null,
+  format: null,
+  operation: null,
+  topic: null
+};
+
+const regExp = new RegExp('http:\\/\\/edamontology\\.org\\/(\\w+)_(\\d+)');
+
 class EDAM {
+  static getVersion() {
+    return edam['v'];
+  }
+
+  static buildUri(type, edamId) {
+    return `http://edamontology.org/${type}_${edamId}`;
+  }
+
+  static getTermByUri(uri) {
+    try {
+      var [_, type, edamId] = uri.match(regExp);
+    } catch (err) {
+      throw new Error(`Expected URI is "http://edamontology.org/{ data | format | operation | topic }_{ id }"
+      Provided URI is "${uri}"`);
+    }
+
+    if (!Object.keys(data_indexes).includes(type)) {
+      throw new Error(`Expected type is one of { ${Object.keys(data_indexes).join(' | ')} }
+      Provided type is ${type}`);
+    }
+
+    if (!!edam_indexes[type]) {
+      // if cached do nothing
+    } else {
+      // otherwise build map
+      let map = {};
+      let a = edam.data[type];
+      a.map(function (o, i) {
+        map[o[1]] = i;
+      });
+      edam_indexes[type] = map;
+    }
+
+    const term = edam.data[type][edam_indexes[type][edamId]];
+    if (term) {
+      return term;
+    } else {
+      throw new Error(`Term "${uri}" was not found. EDAM version used is ${EDAM.getVersion()}`)
+    }
+  }
 
   static getTermById(type, internalId) {
     if (!!data_indexes[type]) {
@@ -94,6 +143,14 @@ class EDAM {
       data_indexes[this.type] = map;
       return map;
     }
+  }
+
+  buildUri(edamId) {
+    return EDAM.buildUri(this.type, edamId);
+  }
+
+  getByUri(uri) {
+    return EDAM.getTermByUri(this.type, uri);
   }
 
   structureIndex() {

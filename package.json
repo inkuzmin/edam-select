@@ -1,7 +1,7 @@
 {
   "name": "edam-select",
   "description": "EDAM selector component",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "author": "Ivan Kuzmin <inkuzm@gmail.com>",
   "license": "MIT",
   "private": false,

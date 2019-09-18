@@ -239,9 +239,9 @@
     checkboxes: false,      // default
     search: {               // default
         threshold: 0.1,
-        label: false,
-        synonyms: false,
-        definitions: false,
+        label: true,
+        synonyms: true,
+        definitions: true,
     },
     preselected: false      // default
 });</code></pre>
@@ -400,8 +400,6 @@
         <code>1.0</code> (match anything).
         <code>label</code>, <code>synonyms</code> and <code>definitions</code> could restrict the search to be performed
         only across the certain fields.
-        Nevertheless, if none of them is true (or if they are skipped altogether), all of them are set to be active by
-        default.
       </em>
       <dl>
         <dt>type</dt>
@@ -412,29 +410,29 @@
         <dd class="example">
               <pre><code class="json">{
     threshold: 0.1,
-    label: false,
-    synonyms: false,
-    definitions: false
+    label: true,
+    synonyms: true,
+    definitions: true
 }</code></pre>
         </dd>
       </dl>
       <hr>
 
       <p><strong>preselected</strong></p>
-      <em>The list of EDAM terms internal IDs to be preselected. Term IDs can be found under the <code>data</code> field
-        of
-        the <code>edam.2.json</code>. Another way to figure out the internal ID of the specific term is to set a handler
-        for the
-        <code>edam:change</code> event, select the term of interest using the UI control and output the result in
-        console, as shown below.
+      <em>The list of EDAM terms to be preselected by their EDAM URIs or (<strong>deprecated</strong>) by internal IDs.
       </em>
       <dl>
         <dt>type</dt>
-        <dd>Array[Integers]</dd>
+        <dd>Array[Strings] or (<strong>deprecated</strong>) Array[Integers]</dd>
         <dt>required</dt>
         <dd>no</dd>
         <dt>default</dt>
         <dd>no</dd>
+
+        <dt>example: <code>preselected: ["http://edamontology.org/topic_0091"]</code></dt>
+        <dd class="example">
+          <div id="edam-select-preselected"></div>
+        </dd>
       </dl>
       <hr>
 
@@ -456,13 +454,26 @@
         "3": [], // Syonyms
         "4": ["An alignment of molecular sequences..."], // Definitions
         "5": [1287],      // Relation IDs
-        "subroot": [...]  // Information about the subroots (the first-level term IDs to which the selected terms belong)
+        "subroot": [...]  // Information about the subroots (the first-level term IDs to which the selected terms belong),
+        "uri": "http://edamontology.org/topic_0091" // EDAM URI
     }]
 }</code></pre>
       or by calling the <code>getSelected()</code> method:</p>
       <pre><code class="javascript">edamSelect.getSelected();</code></pre>
 
       <h3>Convenience Utils</h3>
+      <p>The <code>EdamSelect.getTermByUri(edamUri)</code> static method returns the information about the term
+        by EDAM URI of the format "http://edamontology.org/{ data | format | operation | topic }_{ id }":</p>
+      <pre><code class="json">[
+    internalId,        // 0 : Integer
+    EDAM ID,           // 1 : String
+    Label,             // 2 : String
+    Synonyms,          // 3 : Array[String]
+    Definitions,       // 4 : Array[String]
+    Relation IDs       // 5 : Array[Integer]
+]</code></pre>
+
+      <strong>Deprecated</strong>
       <p>The <code>EdamSelect.getTermById(type, internalId)</code> static method returns the information about the term
         by internal ID:</p>
       <pre><code class="json">[
@@ -514,9 +525,9 @@
       checkboxes: false,      // default
       search: {               // default
         threshold: 0.1,
-        label: false,
-        synonyms: false,
-        definitions: false,
+        label: true,
+        synonyms: true,
+        definitions: true,
       },
       preselected: false      // default
     });
@@ -542,8 +553,17 @@
       checkboxes: true,
     });
 
+    new EdamSelect('#edam-select-preselected', {
+      name: 'edam-checkboxes',
+      type: 'topic',
+      maxHeight: 300,
+      preselected: ["http://edamontology.org/topic_0091"],
+    });
 
-    console.log(EdamSelect.getTermById('data', 66));
+    document.addEventListener('edam:select', (event)=>{
+      console.log(event);
+    });
+
     console.timeEnd('Application');
 
     document.addEventListener('DOMContentLoaded', (event) => {

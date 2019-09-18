@@ -214,6 +214,10 @@ class EdamSelect {
     return EDAM.getTermById(type, internalId);
   }
 
+  static getTermByUri(uri) {
+    return EDAM.getTermByUri(uri);
+  }
+
   constructor(sel, params) {
     this.id = ++EdamSelect.id;
 
@@ -324,7 +328,15 @@ class EdamSelect {
 
     if (params.preselected) {
       params.preselected.forEach((id) => {
-        let term = this.edam.data[this.edam.dataIndex()[id]];
+        let term;
+        if (id  === parseInt(id, 10)) { // deprecated
+          term = this.edam.data[this.edam.dataIndex()[id]];
+        } else if (id === id.toString()) {
+          term = this.edam.getByUri(id);
+        } else {
+          throw new Error(`"preselected" requires an array of EDAM URIs
+          of the form "http://edamontology.org/{ data | format | operation | topic }_{ id }"`);
+        }
 
         term.selected = true;
 
@@ -358,7 +370,9 @@ class EdamSelect {
       struct = this.structure[this.structureIndex[struct[PARENT]]];
     }
 
-    return this.data[this.dataIndex[prevStruct[TERM_FID]]];
+    let subroot = this.data[this.dataIndex[prevStruct[TERM_FID]]];
+    subroot.uri = this.edam.buildUri(subroot[1]);
+    return subroot;
   }
 
   resetChanges() {
@@ -387,9 +401,11 @@ class EdamSelect {
         id: this.id,
         type: this.type,
         selected: this.selected.map((tag) => {
+          let term = this.edam.data[this.edam.dataIndex()[tag.termId]];
           return {
             subroot: this.getSubRoot(this.edam.data[this.edam.dataIndex()[tag.termId]]),
-            ...this.edam.data[this.edam.dataIndex()[tag.termId]]
+            uri: this.edam.buildUri(term[1]),
+            ...term
           };
         })
       },
@@ -399,9 +415,11 @@ class EdamSelect {
 
   getSelected() {
     return this.selected.map((tag) => {
+      let term = this.edam.data[this.edam.dataIndex()[tag.termId]];
       return {
         subroot: this.getSubRoot(this.edam.data[this.edam.dataIndex()[tag.termId]]),
-        ...this.edam.data[this.edam.dataIndex()[tag.termId]]
+        uri: this.edam.buildUri(term[1]),
+        ...term
       };
     })
   }

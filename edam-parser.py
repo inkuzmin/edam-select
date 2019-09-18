@@ -1,16 +1,27 @@
 import csv
 import json
 from pprint import pprint
+import urllib.request
+import os
 
 import sqlite3
 from sqlite3 import Error
+
+VERSION = "1.21"
+link = "http://edamontology.org/EDAM_{}.csv".format(VERSION)
+file_name = "EDAM_{}.csv".format(VERSION)
+cwd = os.getcwd()
+
+with urllib.request.urlopen(link) as response, open(file_name, 'wb') as out_file:
+    data = response.read()
+    out_file.write(data)
 
 try:
     # Open DB
     conn = sqlite3.connect("edam.db")
     c = conn.cursor()
 
-    with open('EDAM.csv') as csvfile:
+    with open(file_name) as csvfile:
         # Create table with data we need
         terms = csv.reader(csvfile)
 
@@ -165,8 +176,9 @@ try:
 
         # export result
         result = {
+            'v': VERSION,
             'structure': structure_data,
-            'data': search_data
+            'data': search_data,
         }
 
         # result = {

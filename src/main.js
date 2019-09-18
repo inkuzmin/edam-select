@@ -20,7 +20,7 @@ const SYNONYMS = 3;
 const DEFINITIONS = 4;
 const REL_FID = 5;
 
-const DEBUG = true;
+const DEBUG = false;
 
 class Spotlight {
   constructor(id) {

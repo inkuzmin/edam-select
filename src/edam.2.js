@@ -1,6 +1,6 @@
 import edam from './edam.2.json';
 
-const DEBUG = true;
+const DEBUG = false;
 
 let data_indexes = {
   data: null,

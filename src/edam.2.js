@@ -34,7 +34,7 @@ class EDAM {
     return `http://edamontology.org/${type}_${edamId}`;
   }
 
-  static getTermByUri(uri) {
+  static getTermByUri(uri, checkType) {
     try {
       var [_, type, edamId] = uri.match(regExp);
     } catch (err) {
@@ -45,6 +45,10 @@ class EDAM {
     if (!Object.keys(data_indexes).includes(type)) {
       throw new Error(`Expected type is one of { ${Object.keys(data_indexes).join(' | ')} }
       Provided type is ${type}`);
+    }
+
+    if (checkType && (checkType !== type)) {
+      throw new Error(`Provided URI has type "${type}", but declared type is "${checkType}"`);
     }
 
     if (!!edam_indexes[type]) {
@@ -150,7 +154,7 @@ class EDAM {
   }
 
   getByUri(uri) {
-    return EDAM.getTermByUri(this.type, uri);
+    return EDAM.getTermByUri(uri, this.type);
   }
 
   structureIndex() {

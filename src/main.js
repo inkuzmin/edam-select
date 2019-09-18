@@ -328,13 +328,11 @@ class EdamSelect {
 
     if (params.preselected) {
       params.preselected.forEach((id) => {
-
         let term;
         if (id  === parseInt(id, 10)) { // deprecated
           term = this.edam.data[this.edam.dataIndex()[id]];
         } else if (id === id.toString()) {
           term = this.edam.getByUri(id);
-          term.uri = id;
         } else {
           throw new Error(`"preselected" requires an array of EDAM URIs
           of the form "http://edamontology.org/{ data | format | operation | topic }_{ id }"`);

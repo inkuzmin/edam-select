@@ -1,0 +1,576 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>EDAM select</title>
+  <!--  <link rel="stylesheet" href="norm.css">-->
+
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
+
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+
+    body {
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    }
+
+    header {
+      display: flex;
+      flex-flow: wrap;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      color: white;
+      text-align: center;
+      height: 200px;
+      background: linear-gradient(#2E87E5, #5142B7);
+    }
+
+    header:before {
+      content: "";
+      position: absolute;
+      width: 500%;
+      height: 500%;
+      top: -200%;
+      left: -200%;
+      background: url(https://inkuzmin.github.io/logos/assets/biit-pattern.svg) 0 0 repeat;
+      opacity: 0.1;
+      -webkit-transform: rotate(-20deg);
+      transform: rotate(-20deg);
+      transform-origin: 50% 50%;
+    }
+
+    header h1 {
+      font-weight: 300;
+      font-size: 72px;
+      line-height: 72px;
+      margin: 0;
+    }
+
+    header p {
+      /*margin: 0;*/
+      font-size: 18px;
+    }
+
+    .subheader {
+      height: 50px;
+      background-color: rgba(100, 149, 237, 0.2);
+      display: flex;
+      flex-flow: wrap;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .wrapper {
+      min-height: 100%;
+      margin-bottom: -150px;
+    }
+
+    #main {
+      width: 500px;
+      margin: 50px auto;
+    }
+
+    footer {
+      display: flex;
+      background-color: #efefef;
+    }
+
+    .unitartu {
+      margin: 10px;
+    }
+
+    code {
+      background-color: rgba(100, 149, 237, 0.2);
+      padding: 2px;
+      display: inline-block;
+      border-radius: 2px;
+      font-family: monospace;
+      font-size: 1.1rem;
+      text-decoration: none;
+      font-style: normal;
+    }
+
+    pre > code {
+      font-size: 0.9rem;
+    }
+
+    footer > div {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    a {
+      color: rgba(100, 149, 237, 0.9);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(100, 149, 237, 0.5);
+    }
+
+    a:hover {
+      color: rgba(100, 149, 237, 1);
+      border-bottom: 1px solid rgba(100, 149, 237, 0.8);
+    }
+
+    .image, .image:hover {
+      border: none;
+    }
+
+    footer, .push {
+      height: 150px;
+    }
+
+    hr {
+      border: 0;
+      border-bottom: 1px lightgrey dashed;
+    }
+
+    dt {
+      background-color: #eee;
+      padding: 5px 0;
+    }
+
+    dd {
+      padding: 5px 0;
+    }
+
+    dd.example {
+      margin-inline-start: 0;
+    }
+
+    .btn {
+      margin-top: 5px;
+      background-color: #2E87E5;
+      border: none;
+      color: white;
+      padding: 10px 32px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 14px;
+      outline: none;
+      border-radius: 3px;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .btn:active {
+      position: relative;
+      top: 1px;
+    }
+
+    .copy {
+      color: grey;
+      min-width: 300px;
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 0.9rem;
+    }
+
+    table td, table th {
+      border: 1px solid #ddd;
+      padding: 8px;
+      width: 33%;
+    }
+
+    table tr:nth-child(even) {
+      background-color: #f2f2f2;
+    }
+
+    table tr:hover {
+      background-color: #ddd;
+    }
+
+    table th {
+      padding-top: 12px;
+      padding-bottom: 12px;
+      text-align: left;
+      background-color: #eee;
+      color: white;
+    }
+  </style>
+
+  <link rel="stylesheet"
+        href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.8/styles/default.min.css">
+  <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.15.8/highlight.min.js"></script>
+</head>
+
+<body>
+<div>
+  <div class="wrapper">
+    <header>
+      <div>
+        <h1>
+          EDAM select
+        </h1>
+        <p>A control to select EDAM terms</p>
+      </div>
+    </header>
+    <div class="subheader">
+      <a class="github-button" href="https://github.com/inkuzmin" data-size="large"
+         aria-label="Follow @inkuzmin on GitHub">Follow @inkuzmin</a>
+      <a class="github-button" href="https://github.com/inkuzmin/edam-select" data-icon="octicon-star" data-size="large"
+         data-show-count="true" aria-label="Star inkuzmin/edam-select on GitHub">Star</a>
+      <a class="github-button" href="https://github.com/inkuzmin/edam-select/fork" data-icon="octicon-repo-forked"
+         data-size="large" data-show-count="true" aria-label="Fork inkuzmin/edam-select on GitHub">Fork</a>
+    </div>
+    <div id="main">
+
+      <h3>Initialisation</h3>
+      <p>The initialisation looks as follows:</p>
+      <pre><code class="javascript">let edamSelect = new EdamSelect('#edam-select-1', {
+    name: 'ref-1',          // optional
+    type: 'operation',
+    initDepth: 1,           // default
+    inline: false,          // default
+    closeOnSelect: true,    // conditional default
+    maxHeight: 300,         // optional
+    multiselect: false,     // default
+    checkboxes: false,      // default
+    search: {               // default
+        threshold: 0.1,
+        label: true,
+        synonyms: true,
+        definitions: true,
+    },
+    preselected: false      // default
+});</code></pre>
+      <p>The result:</p>
+      <div id="edam-select-1"></div>
+
+      <h3>Parameters</h3>
+
+      <p>The first argument is the selector for the DOM node, that will be used to mount control to. It can be just an
+        empty <code>div</code> element.</p>
+      <p>The second argument is the configuration object. Let's go through its properties one by one.</p>
+
+      <hr>
+
+      <p><strong>name</strong></p>
+      <em>An arbitrary string used to distinguish the <code>edam:change</code> event emitters.</em>
+      <dl>
+        <dt>type</dt>
+        <dd>String</dd>
+        <dt>required</dt>
+        <dd>no</dd>
+        <dt>default</dt>
+        <dd><code>edam-${number}</code></dd>
+      </dl>
+      <hr>
+
+      <p><strong>type</strong></p>
+      <em>EDAM sub-ontology or branch of concepts.</em>
+      <dl>
+        <dt>type</dt>
+        <dd>Enum[ data | operation | topic | format ]</dd>
+        <dt>required</dt>
+        <dd><strong>yes</strong></dd>
+      </dl>
+      <hr>
+
+      <p><strong>initDepth</strong></p>
+      <em>It sets the default level of the terms' hierarchy that is disclosed (opened).
+        If <code>0</code>, then the hierarchy is fully-disclosed (it might affect the rendering time and
+        responsiveness).
+      </em>
+      <dl>
+        <dt>type</dt>
+        <dd>Integer</dd>
+        <dt>required</dt>
+        <dd>no</dd>
+        <dt>default</dt>
+        <dd><code>1</code></dd>
+        <dt>special case</dt>
+        <dd><code>0</code> treated as <code>+Infinity</code></dd>
+      </dl>
+      <hr>
+
+      <p><strong>inline</strong></p>
+      <em>If <code>true</code> the selection element will appear as an overlay.
+        Else the selection menu will push elements when opened.
+      </em>
+      <dl>
+        <dt>type</dt>
+        <dd>Boolean</dd>
+        <dt>required</dt>
+        <dd>no</dd>
+        <dt>default</dt>
+        <dd><code>false</code></dd>
+        <dt>example: <code>inline: true</code></dt>
+        <dd class="example">
+          <div id="edam-select-inline"></div>
+        </dd>
+      </dl>
+      <hr>
+
+      <p><strong>closeOnSelect</strong></p>
+      <em>If the selection menu should be closed automatically on select.
+      </em>
+      <dl>
+        <dt>type</dt>
+        <dd>Boolean</dd>
+        <dt>required</dt>
+        <dd>no</dd>
+        <dt>default</dt>
+        <dd><code>multiselect ? false : true</code></dd>
+      </dl>
+      <hr>
+
+      <p><strong>maxHeight</strong></p>
+      <em>If the selection menu should be closed automatically on select.
+      </em>
+      <dl>
+        <dt>type</dt>
+        <dd>Integer</dd>
+        <dt>required</dt>
+        <dd>no</dd>
+        <dt>default</dt>
+        <dd><code>inferred from the content height</code></dd>
+      </dl>
+      <hr>
+
+      <p><strong>multiselect</strong></p>
+      <em>If multiple terms can be selected.
+      </em>
+      <dl>
+        <dt>type</dt>
+        <dd>Boolean</dd>
+        <dt>required</dt>
+        <dd>no</dd>
+        <dt>default</dt>
+        <dd><code>false</code></dd>
+        <dt>example: <code>multiselect: true</code></dt>
+        <dd class="example">
+          <div id="edam-select-multiple"></div>
+        </dd>
+      </dl>
+      <hr>
+
+      <p><strong>checkboxes</strong></p>
+      <em>Change interface to have radio buttons (if <code>multiselect</code> is <code>false</code>)
+        or checkboxes (if <code>multiselect</code> is <code>true</code>) next to terms.
+        Also changes some interactions, see the comparison table below.
+      </em>
+      <dl>
+        <dt>type</dt>
+        <dd>Boolean</dd>
+        <dt>required</dt>
+        <dd>no</dd>
+        <dt>default</dt>
+        <dd><code>false</code></dd>
+        <dt>comparison table</dt>
+        <dd class="example">
+          <table>
+            <tr>
+              <td>checkboxes</td>
+              <td><code>false</code></td>
+              <td><code>true</code></td>
+            </tr>
+            <tr>
+              <td>selection</td>
+              <td>click on the term</td>
+              <td>click on the radio button / checkbox next to the term or double-click on the term</td>
+            </tr>
+            <tr>
+              <td>toggle info</td>
+              <td>click on the icon button</td>
+              <td>click on the term</td>
+            </tr>
+          </table>
+        </dd>
+        <dt>example: <code>checkboxes: true</code></dt>
+        <dd class="example">
+          <div id="edam-select-checkboxes"></div>
+        </dd>
+      </dl>
+      <hr>
+
+      <p><strong>search</strong></p>
+      <em>Parameters used to initialise <strong>fuse.js</strong>. Threshold is from <code>0.0</code> (perfect match) to
+        <code>1.0</code> (match anything).
+        <code>label</code>, <code>synonyms</code> and <code>definitions</code> could restrict the search to be performed
+        only across the certain fields.
+      </em>
+      <dl>
+        <dt>type</dt>
+        <dd>Object</dd>
+        <dt>required</dt>
+        <dd>no</dd>
+        <dt>default</dt>
+        <dd class="example">
+              <pre><code class="json">{
+    threshold: 0.1,
+    label: true,
+    synonyms: true,
+    definitions: true
+}</code></pre>
+        </dd>
+      </dl>
+      <hr>
+
+      <p><strong>preselected</strong></p>
+      <em>The list of EDAM terms to be preselected by their EDAM URIs or (<strong>deprecated</strong>) by internal IDs.
+      </em>
+      <dl>
+        <dt>type</dt>
+        <dd>Array[Strings] or (<strong>deprecated</strong>) Array[Integers]</dd>
+        <dt>required</dt>
+        <dd>no</dd>
+        <dt>default</dt>
+        <dd>no</dd>
+
+        <dt>example: <code>preselected: ["http://edamontology.org/topic_0091"]</code></dt>
+        <dd class="example">
+          <div id="edam-select-preselected"></div>
+        </dd>
+      </dl>
+      <hr>
+
+      <h3>Access</h3>
+      <p>There are to ways to access the selected terms: by listening to the <code>edam:change</code> event that is
+        fired when the
+        list of selected terms is changed (when user selects or unselects the terms):</p>
+      <pre><code class="javascript">document.addEventListener('edam:change', (event) => {
+    console.log(event.detail);
+});</code></pre>
+      <pre><code class="json">{
+    "name": "edam-1",
+    "id": 1,
+    "type": "data",
+    "selected": [{
+        "0": 477,         // Internal ID
+        "1": "1916",      // EDAM ID
+        "2": "Alignment", // Label
+        "3": [], // Syonyms
+        "4": ["An alignment of molecular sequences..."], // Definitions
+        "5": [1287],      // Relation IDs
+        "subroot": [...]  // Information about the subroots (the first-level term IDs to which the selected terms belong),
+        "uri": "http://edamontology.org/topic_0091" // EDAM URI
+    }]
+}</code></pre>
+      or by calling the <code>getSelected()</code> method:</p>
+      <pre><code class="javascript">edamSelect.getSelected();</code></pre>
+
+      <h3>Convenience Utils</h3>
+      <p>The <code>EdamSelect.getTermByUri(edamUri)</code> static method returns the information about the term
+        by EDAM URI of the format "http://edamontology.org/{ data | format | operation | topic }_{ id }":</p>
+      <pre><code class="json">[
+    internalId,        // 0 : Integer
+    EDAM ID,           // 1 : String
+    Label,             // 2 : String
+    Synonyms,          // 3 : Array[String]
+    Definitions,       // 4 : Array[String]
+    Relation IDs       // 5 : Array[Integer]
+]</code></pre>
+
+      <strong>Deprecated</strong>
+      <p>The <code>EdamSelect.getTermById(type, internalId)</code> static method returns the information about the term
+        by internal ID:</p>
+      <pre><code class="json">[
+    internalId,        // 0 : Integer
+    EDAM ID,           // 1 : String
+    Label,             // 2 : String
+    Synonyms,          // 3 : Array[String]
+    Definitions,       // 4 : Array[String]
+    Relation IDs       // 5 : Array[Integer]
+]</code></pre>
+
+
+    </div>
+    <div class="push"></div>
+  </div>
+  <footer>
+    <div class="acknowledgements">
+      <a class="image unitartu" href="https://www.ut.ee/en">
+        <img alt="Emblem of the University of Tartu" src="https://inkuzmin.github.io/logos/assets/unitartu.svg"
+             width="100">
+      </a>
+      <a class="image elixir-ee" href="https://elixir.ut.ee">
+        <img alt="Emblem of ELIXIR Estonia" src="https://elixir.ut.ee/sites/default/files/ELIXIR_Estonia.png"
+             height="80">
+      </a>
+      <a class="image elixir-tess" href="https://tess.elixir-europe.org">
+        <img alt="Emblem of ELIXIR TeSS"
+             src="https://raw.githubusercontent.com/ElixirTeSS/TeSS/master/app/assets/images/ELIXIR_TeSS_logo_normal.png"
+             height="80">
+      </a>
+    </div>
+    <div class="copy">
+      Copyright © University of Tartu, 2018. MIT Licensed.
+    </div>
+  </footer>
+
+  <script src="./dist/build.js"></script>
+  <script>
+    console.time('Application');
+
+    let edamSelect = new EdamSelect('#edam-select-1', {
+      name: 'ref-1',          // optional
+      type: 'operation',
+      initDepth: 1,           // default
+      inline: false,          // default
+      closeOnSelect: true,    // conditional default
+      maxHeight: 300,         // optional
+      multiselect: false,     // default
+      checkboxes: false,      // default
+      search: {               // default
+        threshold: 0.1,
+        label: true,
+        synonyms: true,
+        definitions: true,
+      },
+      preselected: false      // default
+    });
+
+    new EdamSelect('#edam-select-inline', {
+      name: 'edam-inline',
+      type: 'data',
+      inline: true,
+      maxHeight: 300,
+    });
+
+    new EdamSelect('#edam-select-multiple', {
+      name: 'edam-multiple',
+      type: 'format',
+      maxHeight: 300,
+      multiselect: true,
+    });
+
+    new EdamSelect('#edam-select-checkboxes', {
+      name: 'edam-checkboxes',
+      type: 'format',
+      maxHeight: 300,
+      checkboxes: true,
+    });
+
+    new EdamSelect('#edam-select-preselected', {
+      name: 'edam-checkboxes',
+      type: 'topic',
+      maxHeight: 300,
+      preselected: ["http://edamontology.org/topic_0091"],
+    });
+
+    document.addEventListener('edam:change', (event)=>{
+      console.log(event);
+    });
+
+    console.timeEnd('Application');
+
+    document.addEventListener('DOMContentLoaded', (event) => {
+      document.querySelectorAll('pre code').forEach((block) => {
+        hljs.highlightBlock(block);
+      });
+    });
+  </script>
+</body>
+</html>
